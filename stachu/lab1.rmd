@@ -42,7 +42,7 @@ lead.uni$time.cat <- rep(1:4)
 
 
 
-1. In the first two tasks we compare two different estimators of error variance covariance matrices. We consider unstructured matrices. The first one is REML estimator:
+In the first two tasks we compare two different estimators of error variance covariance matrices. We consider unstructured matrices. The first one is REML estimator:
 ```{r}
 lead.cat <- gls(y~factor(time.cat),
                 correlation = corSymm(form=~1 | id),
@@ -70,7 +70,7 @@ We can see that they don't differ much. Actually the only distinction when consi
 
 ## Task 3 and Task 4
 
-In task 3 and 4 we should choose some assumptions about the structure of the variance covariance matrix from the first task. Unfortunately, at the first glance the matrix doesn't have any structure at all. The only clearly visible thing is that the variances are getting bigger with time. First we try to test if assumptions of equal variance is plausible. From the unstructured variance covariance matrix it does not look so. Therefore we choose parameters \textit{correlation=corSymm(form= ~1 | id),
+In task 3 and 4 we should choose some assumptions about the structure of the variance covariance matrix from the first task. Unfortunately, at the first glance the matrix does not have any structure at all. The only clearly visible thing is that the variances are getting bigger with time. First we try to test if assumptions of equal variance is plausible. From the unstructured variance covariance matrix it does not look so. Therefore we choose parameters \textit{correlation=corSymm(form= $\sim$ 1 | id),
 weights=varIdent()}. We received following output (to compare the models we use \textit{anova} function, which performs likelihood ratio test):
 
 ```{r}
@@ -83,8 +83,8 @@ print(anova(lead.cat.new, lead.cat))
 ```
 We can clearly see that p-value was very small - we reject the null hypothesis that the unstructured model explains as much variability as the simpler one.
 
-Next we choose some better assumption: variances are powers of \textit{time} variable. we use parameters: \textit{correlation=corSymm(form= ~1 | id),
-weights=varPower(form = ~time+1)}:
+Next we choose some better assumption: variances are powers of \textit{time} variable. we use parameters: \textit{correlation=corSymm(form= $\sim$1 | id),
+weights=varPower(form = $\sim$time+1)}:
 ```{r}
 lead.cat.new <- gls(y~factor(time.cat),
 correlation=corSymm(form= ~1 | id),
@@ -93,20 +93,10 @@ data=lead.uni)
 print(getVarCov(lead.cat.new))
 print(anova(lead.cat.new, lead.cat))
 ```
-Here the p-value is just above significance level - we do not reject the null hypothesis and such assumption about the such structure of variance covariance matrix is believable. We further extend this approach just by relaxing the structure. We again use \textit{varPower} but this time the multiplication constants in the powers can be different for different \textit{time.cat} factor levels. We use parameters: \textit{correlation=corSymm(form= ~1 | id),
-weights=varPower(form = ~time+1 | factor(time.cat))}:
-```{r}
-lead.cat.new <- gls(y~factor(time.cat),
-correlation=corSymm(form= ~1 | id),
-weights=varPower(form = ~time+1 | factor(time.cat)),
-data=lead.uni)
-print(getVarCov(lead.cat.new))
-print(anova(lead.cat.new, lead.cat))
-```
-Now p-value is very high. We can clearly say that such assumptions about the covariance matrix does not weaken our model.
+Here the p-value is just above significance level - we do not reject the null hypothesis and such assumption about the such structure of variance covariance matrix is believable.
 
-Due to the problem with seeing a structure in correlations, we checked many different possible correlations structure. However none of them seemed good enough. For example for parameters \textit{correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form = ~1 | factor(time.cat))} we got:
+Due to the problem with seeing a structure in correlations, we checked many different possible correlations structure. However none of them seemed good enough. For example for parameters \textit{correlation=corCompSymm(form= $\sim$1 | id),
+weights=varIdent(form = $\sim$1 | factor(time.cat))} we got:
 ```{r}
 lead.cat.new <- gls(y~factor(time.cat),
 correlation=corCompSymm(form= ~1 | id),
