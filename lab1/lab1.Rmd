@@ -43,6 +43,7 @@ weights=varIdent(form= ~1 | factor(time.cat)),
 data=lead.uni)
 summary(lead.cat)
 ```
+1. Reml unstrutured
 ```{r}
 covariance.matrix <- getVarCov(lead.cat)
 print(covariance.matrix)
@@ -53,6 +54,7 @@ task 1 - var(Y) or var(Y|X)
 task 3 - what can we assume (maybe the same variances, correlations)
 task 6 - use a test
 
+2. ML unstructured
 ```{r}
 lead.cat.ml <- gls(y~factor(time.cat),
 correlation=corSymm(form= ~1 | id),
@@ -65,5 +67,57 @@ print(covariance.matrix.ml)
 ```{r}
 getVarCov(lead.cat.ml)
 
+```
+3 i 4.
+Sprawdzimy tą samą wariancję
+
+```{r}
+lead.cat.ident.var <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(),
+data=lead.uni)
+print(getVarCov(lead.cat.ident.var))
+```
+
+
+```{r}
+anova(lead.cat.ident.var, lead.cat)
+```
+```{r}
+anova(lead.cat, lead.cat.ident.var)
+```
+Do rozkminy: jak działa ta cudna funkcja, co wybrać na rozsądne założenia o macierzy kowariancji
+
+5. 
+
+```{r}
+intervs <- intervals(lead.cat)$coef
+for(i in 2:4){
+  intervs[i,] <- intervs[i,] + intervs[1,]
+}
+#print(intervs)
+intervs <- as.data.frame(intervs)
+#print(intervs)
+
+
+lmod <- lm(y~factor(time.cat), data = lead.uni)
+intervs_lm <- confint(lmod)
+for(i in 2:4){
+  intervs_lm[i,] <- intervs_lm[i,] + intervs_lm[1,]
+}
+print(intervs_lm)
+```
+```{r}
+library(ggplot2)
+ggplot(intervs, aes(x=c(0,1,2,3), y=intervs$est)) + 
+    geom_errorbar(aes(ymin=intervs$lower, ymax=intervs$upper, color="red"), width=.1) +
+    geom_errorbar(aes(ymin=intervs_lm[,1], ymax=intervs_lm[,2]), width=.1) +
+    geom_line() +
+    geom_point()
+```
+6. Co to za test?
+
+```{r}
+anova(lead.cat, L = c(0,1,-1,0))
 ```
 
