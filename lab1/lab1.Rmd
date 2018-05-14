@@ -65,7 +65,6 @@ covariance.matrix.ml <- getVarCov(lead.cat.ml)
 print(covariance.matrix.ml)
 ```
 ```{r}
-getVarCov(lead.cat.ml)
 
 ```
 3 i 4.
@@ -108,6 +107,7 @@ for(i in 2:4){
 print(intervs_lm)
 ```
 ```{r}
+
 library(ggplot2)
 ggplot(intervs, aes(x=c(0,1,2,3), y=intervs$est)) + 
     geom_errorbar(aes(ymin=intervs$lower, ymax=intervs$upper, color="red"), width=.1) +
@@ -115,9 +115,30 @@ ggplot(intervs, aes(x=c(0,1,2,3), y=intervs$est)) +
     geom_line() +
     geom_point()
 ```
-6. Co to za test?
+```{r}
+print(intervs)
+intervs$type <- "gls"
+colnames(intervs) <- c("lower", "mean", "upper", "type")
+intervs_lm <- as.data.frame(intervs_lm)
+intervs_lm[,3] <- intervs[,2]
+intervs_lm[,4] <- "lm"
+intervs_lm <- intervs_lm[,c(1,3,2,4)]
+colnames(intervs_lm) <- c("lower", "mean", "upper", "type")
+```
+
 
 ```{r}
-anova(lead.cat, L = c(0,1,-1,0))
+intervs_plot <- rbind(intervs, intervs_lm)
+intervs_plot$time <- seq(c(1,2,3,4))
+
+pd <- position_dodge(0.1)
+ggplot(intervs_plot, aes(x=intervs_plot$time, y=intervs_plot$mean, color = intervs_plot$type)) +
+    geom_errorbar(aes(ymin=intervs_plot$lower, ymax=intervs_plot$upper), width=.1, position = pd) +
+    geom_line(position = pd) +
+    geom_point(position = pd)
+```
+6. Co to za test?
+```{r}
+anova(lead.cat, c(0,1,-1,0))
 ```
 
