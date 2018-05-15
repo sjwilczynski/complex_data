@@ -1,0 +1,77 @@
+---
+title: "Complex data - lab2"
+author: "Stanisław Wilczyński"
+date: "15 maja 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
+library(ggplot2)
+library(reshape2)
+library(nlme)
+```
+
+Questions:
+1. what is \textbf{L} for this $H_0$ ? (p.3)
+2. What is \textbf{L} for $H_0$ : the mean blood lead level is the same at
+week 4 and week 6? (p.3)
+3. what is r for the $H_0$ in (1) above? (p.9)
+4. However it should not be used to perform LRTs for nested
+models for mean.Why? (p.10)
+5. What type of test was used? What is our conclusion for testing
+parallelism? (p.15)
+6. What are our conclusions for testing main effects? What other type
+test could be used? (p.16)
+
+
+
+1. $(0,0,1,0)$
+2. $(0,0,1,-1)$ -  a contrast
+```{r}
+lead <- read.table(file = "../data/lead.txt", header = FALSE)
+## Give names to variables
+names(lead) <- c("id", paste("y", 1:4, sep=""))
+lead.uni <- data.frame(id=rep(lead$id, each=4),
+  y=as.numeric(t(as.matrix(lead[,2:5]))),
+  time=rep(c(0,1,4,6)),
+  time.cat=rep(1:4))
+
+```
+
+
+3. Here is the output for the test. The answer is 3.
+```{r}
+lead.cat.ml <- gls(y~factor(time),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+lead.cat.no.ml <- gls(y~1,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+anova(lead.cat.ml, lead.cat.no.ml)
+```
+4. REML estimators use different observation(??) 
+
+
+
+5,6 - check lecture 5,6
+
+```{r}
+moo <- read.table(file = "../data/mooAll.txt", header = TRUE)
+print(dim(moo))
+colnames(moo) <- c("protein", "time", "cow", "diet")
+moo.gls <- gls(protein~factor(time),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(time)),
+data=moo)
+summary(moo.gls)
+```
+
