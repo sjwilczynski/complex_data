@@ -1,0 +1,220 @@
+---
+title: "Complex Data lab 1"
+author: "Anna Zaleska"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r, echo=FALSE}
+lead <- read.table(file = "../data/lead.txt", header = FALSE)
+names(lead) <- c("id", "baseline", paste("week", c(1,4,6), sep=""))
+#summary(lead)
+```
+
+```{r, echo=FALSE}
+mean.y <- apply(lead[,2:5], 2, mean)
+sd.y <- apply(lead[,2:5], 2, sd)
+```
+
+### Task 1
+Univariate format data:
+```{r, echo=FALSE}
+library(reshape2)
+library(knitr)
+lead.uni <- melt(lead, id.vars = c("id"), value.name = "y")
+lead.uni <- lead.uni[c(1,3)]
+lead.uni <- lead.uni[order(lead.uni$id),]
+lead.uni$time <- rep(c(0,1,4,6))
+lead.uni$time.cat <- rep(1:4)
+rownames(lead.uni) <- seq(1:(nrow(lead.uni)))
+kable(head(lead.uni))
+```
+
+Summary of unstructured gls model:
+<br>
+```{r}
+library(nlme)
+lead.cat <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id ),
+weights=varIdent(form= ~1 | factor(time.cat)),
+data=lead.uni)
+summary(lead.cat)
+```
+<br>
+
+
+Variance covariance matrix:
+<br>
+
+```{r}
+covariance.matrix <- getVarCov(lead.cat)
+print(covariance.matrix)
+```
+
+
+### Task 2
+Summary of model when "ML" method is used:
+
+<br>
+```{r}
+lead.cat.ml <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time.cat)),
+data=lead.uni, method = "ML")
+summary(lead.cat.ml)
+```
+
+Variance covariance matrix when "ML" method is used:
+```{r}
+covariance.matrix.ml <- getVarCov(lead.cat.ml)
+print(covariance.matrix.ml)
+```
+
+We can observe that coefficients, variance multipliers and correlations derived from both models are the same. The difference in variance covariance matrices arises from different residual standard errors - $\sigma_{11}$.
+
+### Task 3 
+Based on the observations of estimated variance covariance matrices we can assume that variances at each coordinate are different. We do not observe any particular structure except their growth in time. Also correlations between variables vary. We should not use any simple AR correlation class due to differences in time gaps between measured observations.
+
+
+### Task 4
+
+Let us see how the variance covariance matrix looks like if we assume equal variances (using varIdent()) weights.
+```{r}
+lead.cat.id.var <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(),
+data=lead.uni)
+print(getVarCov(lead.cat.id.var))
+```
+ Let us now compare this model to unstructured REML model by likelihood ratio test.
+
+```{r}
+anova(lead.cat.id.var, lead.cat)
+```
+We can see that p-value in likelihood ratio test is below 0.05. Thus we reject the hipotesis stating that there is no significant difference in both models' fit. Unstructed model explaines more variation of data.
+
+Let us now test the model in which variances are powers of the time coeffitient (using varPower(form = ~time+1)).
+```{r}
+lead.cat.pow.var <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varPower(form = ~time+1),
+data=lead.uni)
+print(getVarCov(lead.cat.pow.var))
+anova(lead.cat.pow.var, lead.cat)
+```
+This time we performed better. We receive p-value just above the signifficance level so we have no basis to claim that models are signifficantly different.
+
+What is interesting, if we fit model depending on time.cat coeffitient (using varPower(form = ~time.cat)) we get the following results.
+
+```{r}
+lead.cat.pow.var2 <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varPower(form = ~time.cat),
+data=lead.uni)
+print(getVarCov(lead.cat.pow.var2))
+anova(lead.cat.pow.var2, lead.cat)
+```
+We get even bigger p-value from likelihood ratio test. But the assumpion that variations depend on the observation number (rather than observation time) does not seem reasonable.
+
+<br>
+
+Testing exponential dependance on time (varExp(form = ~time +1)), we reject the hipotesis thet there is no difference between models.
+```{r}
+lead.cat.exp.var <- gls(y~factor(time.cat),
+correlation=corSymm(form= ~1 | id),
+weights=varExp(form = ~time +1),
+data=lead.uni)
+print(getVarCov(lead.cat.exp.var))
+anova(lead.cat.exp.var, lead.cat)
+```
+
+We also tried to put speciffic structure to correlations but the assumption that there is no structure seems mostly reasonable. 
+
+<br>
+
+Test for compound symmetry (corCompSymm(form= ~1 | id )):
+```{r}
+lead.cat.cor.comp <- gls(y~factor(time.cat),
+correlation=corCompSymm(form= ~1 | id ),
+weights=varIdent(form= ~1 | factor(time.cat)),
+data=lead.uni)
+print(getVarCov(lead.cat.cor.comp))
+anova(lead.cat.cor.comp, lead.cat)
+```
+
+Test for exponential spatial correlation. (corExp(form= ~1 | id )):
+```{r}
+lead.cat.cor.exp <- gls(y~factor(time.cat),
+correlation=corExp(form= ~1 | id ),
+weights=varIdent(form= ~1 | factor(time.cat)),
+data=lead.uni)
+print(getVarCov(lead.cat.cor.exp))
+anova(lead.cat.cor.exp, lead.cat)
+```
+Test for rational quadratics spatial correlation. (corRatio(form= ~1 | id )):
+```{r}
+lead.cat.cor.rat <- gls(y~factor(time.cat),
+correlation=corRatio(form= ~1 | id ),
+weights=varIdent(form= ~1 | factor(time.cat)),
+data=lead.uni)
+print(getVarCov(lead.cat.cor.rat))
+anova(lead.cat.cor.rat, lead.cat)
+```
+
+### Task 5
+
+```{r}
+intervs <- intervals(lead.cat)$coef
+for(i in 2:4){
+  intervs[i,] <- intervs[i,] + intervs[1,]
+}
+intervs <- as.data.frame(intervs)
+
+
+lmod <- lm(y~factor(time.cat), data = lead.uni)
+intervs_lm <- confint(lmod)
+for(i in 2:4){
+  intervs_lm[i,] <- intervs_lm[i,] + intervs_lm[1,]
+}
+
+intervs$type <- "correlation"
+colnames(intervs) <- c("lower", "mean", "upper", "type")
+intervs_lm <- as.data.frame(intervs_lm)
+intervs_lm[,3] <- intervs[,2]
+intervs_lm[,4] <- "no correlation"
+intervs_lm <- intervs_lm[,c(1,3,2,4)]
+colnames(intervs_lm) <- c("lower", "mean", "upper", "type")
+
+```
+
+The plot below presents mean values of observations in consecutive points of time together with their confidence intervals calculated with and without the respect of correlations. To extract confidence intervals we used methods: intervals from gls and confint from lm. 
+
+
+We can observe that confidence intervals taking correlations into account are narrower than the standard ones.
+
+
+```{r}
+library(ggplot2)
+intervs_plot <- rbind(intervs, intervs_lm)
+intervs_plot$time <- c(0,1,4,6)
+
+pd <- position_dodge(0.05)
+ggplot(intervs_plot, aes(x=intervs_plot$time, y=intervs_plot$mean, color = intervs_plot$type)) +
+    geom_errorbar(aes(ymin=intervs_plot$lower, ymax=intervs_plot$upper), width=.1, position = pd) +
+    geom_line(position = pd) +
+    geom_point(position = pd)+
+  labs(x="Time", y="Mean", colour="Legend")
+```
+
+### Task 6
+
+To estimate the mean difference between 2nd and 3rd time points we will use anova function to test a contrast L=c(0,1,-1,0).
+```{r}
+anova(lead.cat, L=c(0,1,-1,0))
+```
+
+p-value is below significance level, so we cannot conlude that the difference between time points is significant.
