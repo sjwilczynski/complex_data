@@ -58,20 +58,68 @@ data=lead.uni)
 
 anova(lead.cat.ml, lead.cat.no.ml)
 ```
-4. REML estimators use different observation(??) 
+```{r}
+lead.cat <- gls(y~factor(time),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+data=lead.uni)
+
+lead.cat.no <- gls(y~1,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+data=lead.uni)
+
+anova(lead.cat, lead.cat.no)
+```
+
+4. REML can't be used to compare nested models for the means in likelihood ratio tests. The reason is that REML estimates the random effects by considering linear combinations of the data that remove the fixed effects. If the fixed effects are changed two models are not directly comparable anymore. For example in case of simple linear regression the restricted maximum likelihood estimator is $\hat \sigma^2 = \frac{RSS}{n-p}$, which is clearly dependent on the number of regression coefficients.
 
 
 
-5,6 - check lecture 5,6
+5. We used Wald test for model parameters. We conclude that there is no group by time effect because p-value for group by time is quite large - we do not reject null hypothesis. 
+
+6. We conclude that only time is significant - there is no group effect. Score test, likelihood ratio test and Wald test can be used exchangebly (???) https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faqhow-are-the-likelihood-ratio-wald-and-lagrange-multiplier-score-tests-different-andor-similar/
+
+
+Other tasks
 
 ```{r}
 moo <- read.table(file = "../data/mooAll.txt", header = TRUE)
-print(dim(moo))
-colnames(moo) <- c("protein", "time", "cow", "diet")
-moo.gls <- gls(protein~factor(time),
+colnames(moo) <- c("protein", "week", "cow", "diet")
+moo.gls.interaction <- gls(protein~factor(week)*factor(diet),
 correlation=corSymm(form= ~1 | cow),
-weights=varIdent(form= ~1 | factor(time)),
+weights=varIdent(form= ~1 | factor(week)),
 data=moo)
-summary(moo.gls)
+summary(moo.gls.interaction)
+anova(moo.gls.interaction)
+```
+```{r}
+moo.gls.fixed <- gls(protein~factor(week)+factor(diet),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(week)),
+data=moo)
+summary(moo.gls.fixed)
+anova(moo.gls.fixed)
+```
+```{r}
+moo.multi <- NULL
+for(cow in unique(moo$cow)){
+  p1 <- moo$protein[which(moo$cow==cow & moo$week==1)]
+  p2 <- moo$protein[which(moo$cow==cow & moo$week==2)]
+  p3 <- moo$protein[which(moo$cow==cow & moo$week==3)]
+  p4 <- moo$protein[which(moo$cow==cow & moo$week==4)]
+  diet <- unique(moo$diet[which(moo$cow==cow & moo$week==1)])[1]
+  moo.multi <- rbind(moo.multi, c(p1,max(p2,3),p3,p4,diet))
+} 
+moo.barley.means <- apply(moo.multi[which(moo.multi[,5]==1),], mean, MARGIN = 2, na.rm=TRUE)
+moo.mixed.means <-  apply(moo.multi[which(moo.multi[,5]==2),], mean, MARGIN = 2, na.rm=TRUE)
+moo.lupins.means <- apply(moo.multi[which(moo.multi[,5]==3),], mean, MARGIN = 2, na.rm=TRUE)
+moo.means <- data.frame(rbind(moo.barley.means, moo.mixed.means, moo.lupins.means))
+colnames(moo.means) <- c("t1", "t2", "t3", "t4", "diet")
+moo.means <- melt(moo.means, id.vars = c("diet"))
+
+
+ggplot(moo.means, aes(x=variable, y=value, group=diet, color=diet)) + geom_line()
+
 ```
 
