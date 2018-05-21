@@ -51,13 +51,49 @@ anova(lead.cat.ml, lead.cat.no.ml)
 
 5. We used multivariate Wald test for model parameters. We conclude that there is no group by time effect because p-value for group by time is quite large - we do not reject null hypothesis. 
 
-6. We conclude that only time is significant - there is no group effect, because the p-value for diet is again quite big. Score test, likelihood ratio test and Wald test are all in fact testing if some parameters are zeros. Furthermore, Wald and score tests are asymptotically equivalent to the likelihood ratio test. Therefore these 3 tests can be used exchangebly. The main difference is taht for Wald and score test you just have to fit one model. In comparison in LRT you need to fit two models. Therefore when fitting model is computationally expensive it may be more reasonable to use Wald or score tests.
+6. We conclude that only time is significant - there is no group effect, because the p-value for diet is again quite big. Score test, likelihood ratio test and Wald test are all in fact testing if some parameters are zeros. Furthermore, Wald and score tests are asymptotically equivalent to the likelihood ratio test. Therefore these 3 tests can be used exchangeably. The main difference is that for Wald and score test you just have to fit one model. In comparison in LRT you need to fit two models. Therefore when fitting model is computationally expensive it may be more reasonable to use Wald or score tests.
 
 
 
 ## Task 2 ##
 
-a) Writing out the most general model
+a) Here we define our covariates:
+
+$X_{1ij} = 1$ for all measurements \newline
+$X_{2ij} = 1$ if $j$th measurement was taken at $time=2$ weeks, 0 otherwise \newline
+$X_{3ij} = 1$ if $j$th measurement was taken at $time=3$ weeks, 0 otherwise \newline
+$X_{4ij} = 1$ if $j$th measurement was taken at $time=4$ weeks, 0 otherwise \newline
+$X_{5ij} = 1$ if $j$th measurement ate barley and lupins, 0 otherwise \newline
+$X_{6ij} = 1$ if $j$th measurement ate only lupins, 0 otherwise \newline
+$X_{7ij} = 1$ if $j$th measurement ate barley and lupins and the measurement is at $time=2$, 0 otherwise \newline
+$X_{8ij} = 1$ if $j$th measurement ate barley and lupins and the measurement is at $time=3$, 0 otherwise \newline
+$X_{9ij} = 1$ if $j$th measurement ate barley and lupins and the measurement is at $time=4$, 0 otherwise \newline
+$X_{10ij} = 1$ if $j$th measurement ate only lupins and the measurement is at $time=2$, 0 otherwise \newline
+$X_{11ij} = 1$ if $j$th measurement ate only lupins and the measurement is at $time=3$, 0 otherwise \newline
+$X_{12ij} = 1$ if $j$th measurement ate only lupins and the measurement is at $time=4$, 0 otherwise \newline
+
+Then the model is:
+$$
+Y_{ij} = \epsilon_{ij} + \beta_1 + \sum_{k=2}^{12} \beta_k X_{kij} 
+$$
+and
+
+\begin{eqnarray*}
+\mu_{b1} &= \beta_1 \\
+\mu_{b2} &= \beta_1 + \beta_2 \\
+\mu_{b3} &= \beta_1 + \beta_3 \\
+\mu_{b4} &= \beta_1 + \beta_4 \\
+\mu_{lb1} &= \beta_1 + \beta_5 \\
+\mu_{lb2} &= \beta_1 + \beta_2 + \beta_5 + \beta_7 \\
+\mu_{lb3} &= \beta_1 + \beta_3 + \beta_5 + \beta_8 \\
+\mu_{lb4} &= \beta_1 + \beta_4 + \beta_5 + \beta_9 \\
+\mu_{l1} &= \beta_1 + \beta_6 \\
+\mu_{l2} &= \beta_1 + \beta_2 + \beta_6 + \beta_{10} \\
+\mu_{l3} &= \beta_1 + \beta_3 + \beta_6 + \beta_{11} \\
+\mu_{l4} &= \beta_1 + \beta_4 + \beta_6 + \beta_{12} \\
+\end{eqnarray*}
+
+
 
 First we will try to get some intuition about possible results if the tests for parallelism and main effects based on data visualization. Here we provide the plot of means vs time grouped by the cows' diet.
 
@@ -89,7 +125,7 @@ ggplot(moo.means, aes(x=variable, y=value, group=diet, color=factor(diet))) +
 ```
 We can clearly see that mean value of \textbf{protein} variable decreases with time, so we expect that the influence of time variable to be high. Although the plots look quite similar (in terms of slopes) based purely on visualization it is hard to predict the result of test for parallelism.
 
-b) Now its time for a real test. We fit the model which takes into account group by time interactions.
+b) Now its time for a real test. We fit the model which takes into account group by time interactions, which means $H_0 : \beta_7 = \ldots = \beta_{12} = 0$ vs $H_a :$ at least one is non-zero.
 ```{r}
 moo.gls.interaction <- gls(protein~factor(week)*factor(diet),
 correlation=corSymm(form= ~1 | cow),
@@ -98,9 +134,9 @@ data=moo)
 summary(moo.gls.interaction)
 anova(moo.gls.interaction)
 ```
-As we can see from the anova output the p-value for $factor(week):factor(diet)$ from the multivaraite Wald test (so for group by time interaction) is quite high. Therefore we don't reject the $H_0$ saying that group by time interaction is not significant in this model.
+As we can see from the anova output the p-value for $factor(week):factor(diet)$ from the multivariate Wald test (so for group by time interaction) is quite high. Therefore we don't reject the $H_0$.
 
-c) Now we test the main effect. We change the model slightly (not to include interactions) and run anova function once again.
+c) Now we test the main effect. We change the model slightly (not to include interactions) and run anova function once again. We test $H_0^1: \beta_5 = \beta_6 = 0$ and $H_0^2: \beta_2 = \beta_3 = \beta_4 = 0$
 ```{r}
 moo.gls.fixed <- gls(protein~factor(week)+factor(diet),
 correlation=corSymm(form= ~1 | cow),
@@ -109,5 +145,4 @@ data=moo)
 summary(moo.gls.fixed)
 anova(moo.gls.fixed)
 ```
-
-We can clearly see that p-value for time variable is very low. This means that this varaible is significant in our model. On the other hand the p-value for group factor is $0.606$ - still above the standard signifance level of $0.05$. Therefore we conclude that the influence on the group on our data is negligible.
+We can clearly see that p-value for time variable is very low. This means that this variable is significant in our model and we reject $H_0^2$. On the other hand the p-value for group factor is $0.0606$ - still above the standard significance level of $0.05$. Therefore we conclude that the influence of the group on our data is negligible and we do not reject $H_0^1$.
