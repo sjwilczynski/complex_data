@@ -1,0 +1,113 @@
+---
+title: "Complex data - lab2"
+author: "Stanisław Wilczyński"
+date: "15 maja 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
+library(ggplot2)
+library(reshape2)
+library(nlme)
+```
+
+## Task 1 ##
+
+1. $(0,0,1,0)$
+2. $(0,0,1,-1)$ -  this is a contrast
+```{r}
+lead <- read.table(file = "../data/lead.txt", header = FALSE)
+## Give names to variables
+names(lead) <- c("id", paste("y", 1:4, sep=""))
+lead.uni <- data.frame(id=rep(lead$id, each=4),
+  y=as.numeric(t(as.matrix(lead[,2:5]))),
+  time=rep(c(0,1,4,6)),
+  time.cat=rep(1:4))
+
+```
+
+
+3. Below is the output for the test. The answer is 3.
+```{r}
+lead.cat.ml <- gls(y~factor(time),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+lead.cat.no.ml <- gls(y~1,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+anova(lead.cat.ml, lead.cat.no.ml)
+```
+
+4. REML can't be used to compare nested models for the means in likelihood ratio tests. The reason is that REML estimates the random effects by considering linear combinations of the data that remove the fixed effects. If the fixed effects are changed two models are not directly comparable anymore. For example in case of simple linear regression the restricted maximum likelihood estimator is $\hat \sigma^2 = \frac{RSS}{n-p}$, which is clearly dependent on the number of regression coefficients.
+
+5. We used multivariate Wald test for model parameters. We conclude that there is no group by time effect because p-value for group by time is quite large - we do not reject null hypothesis. 
+
+6. We conclude that only time is significant - there is no group effect, because the p-value for diet is again quite big. Score test, likelihood ratio test and Wald test are all in fact testing if some parameters are zeros. Furthermore, Wald and score tests are asymptotically equivalent to the likelihood ratio test. Therefore these 3 tests can be used exchangebly. The main difference is taht for Wald and score test you just have to fit one model. In comparison in LRT you need to fit two models. Therefore when fitting model is computationally expensive it may be more reasonable to use Wald or score tests.
+
+
+
+## Task 2 ##
+
+a) Writing out the most general model
+
+First we will try to get some intuition about possible results if the tests for parallelism and main effects based on data visualization. Here we provide the plot of means vs time grouped by the cows' diet.
+
+```{r}
+moo <- read.table(file = "../data/mooAll.txt", header = TRUE)
+colnames(moo) <- c("protein", "week", "cow", "diet")
+moo.multi <- NULL
+for(cow in unique(moo$cow)){
+  p1 <- moo$protein[which(moo$cow==cow & moo$week==1)]
+  p2 <- moo$protein[which(moo$cow==cow & moo$week==2)]
+  p3 <- moo$protein[which(moo$cow==cow & moo$week==3)]
+  p4 <- moo$protein[which(moo$cow==cow & moo$week==4)]
+  diet <- unique(moo$diet[which(moo$cow==cow & moo$week==1)])[1]
+  moo.multi <- rbind(moo.multi, c(p1,max(p2,3),p3,p4,diet))
+} 
+moo.barley.means <- apply(moo.multi[which(moo.multi[,5]==1),], mean, MARGIN = 2, na.rm=TRUE)
+moo.mixed.means <-  apply(moo.multi[which(moo.multi[,5]==2),], mean, MARGIN = 2, na.rm=TRUE)
+moo.lupins.means <- apply(moo.multi[which(moo.multi[,5]==3),], mean, MARGIN = 2, na.rm=TRUE)
+moo.means <- data.frame(rbind(moo.barley.means, moo.mixed.means, moo.lupins.means))
+colnames(moo.means) <- c("1", "2", "3", "4", "diet")
+moo.means <- melt(moo.means, id.vars = c("diet"))
+
+
+ggplot(moo.means, aes(x=variable, y=value, group=diet, color=factor(diet))) +
+       geom_line() +
+       scale_color_manual(labels=c("barley", "barley+lupins", "lupins"), values=c("blue", "red", "green")) +
+       labs(x="Weeks", y=TeX('$\\mu$'), colour="Legend")
+
+```
+We can clearly see that mean value of \textbf{protein} variable decreases with time, so we expect that the influence of time variable to be high. Although the plots look quite similar (in terms of slopes) based purely on visualization it is hard to predict the result of test for parallelism.
+
+b) Now its time for a real test. We fit the model which takes into account group by time interactions.
+```{r}
+moo.gls.interaction <- gls(protein~factor(week)*factor(diet),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(week)),
+data=moo)
+summary(moo.gls.interaction)
+anova(moo.gls.interaction)
+```
+As we can see from the anova output the p-value for $factor(week):factor(diet)$ from the multivaraite Wald test (so for group by time interaction) is quite high. Therefore we don't reject the $H_0$ saying that group by time interaction is not significant in this model.
+
+c) Now we test the main effect. We change the model slightly (not to include interactions) and run anova function once again.
+```{r}
+moo.gls.fixed <- gls(protein~factor(week)+factor(diet),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(week)),
+data=moo)
+summary(moo.gls.fixed)
+anova(moo.gls.fixed)
+```
+
+We can clearly see that p-value for time variable is very low. This means that this varaible is significant in our model. On the other hand the p-value for group factor is $0.606$ - still above the standard signifance level of $0.05$. Therefore we conclude that the influence on the group on our data is negligible.
