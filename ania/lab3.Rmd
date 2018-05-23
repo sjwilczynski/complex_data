@@ -1,11 +1,15 @@
 ---
 title: "Complex Data lab 3"
 author: "Anna Zaleska"
+header-includes:
+   - \usepackage{xcolor}
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+library(nlme)
+library(lattice)
 ```
 
 ```{r}
@@ -23,19 +27,20 @@ wtloss.uni$prog.fac <- factor(wtloss.uni$program, labels=c("1:encourage", "2:non
 attach(wtloss.uni)
 wgt.mean <- tapply(wgtloss, list(month, program), mean)
 wgt.sd <- tapply(wgtloss, list(month, program), sd)
-wgt.mean
-wgt.sd
+#wgt.mean
+#wgt.sd
 detach(wtloss.uni)
 ```
+
 ```{r}
 
-library(lattice) # Use lattice package
-xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
+ # Use lattice package
+#xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
 ```
 
+The most general mean models with different covariance classes:
 
 ```{r}
-library(nlme)
 
 ## CATEGORICAL time, UN, REML
 wtloss.un.cat <- gls(wgtloss~factor(month)*prog.fac,
@@ -59,6 +64,14 @@ data=wtloss.uni)
 #summary(wtloss.ar1.cat)
 ```
 
+### Unstructured vs compound symmetry
+$H_0:$ compound symmetry is adequate for the data \newline
+$H_1:$ unstructred is required
+```{r}
+anova(wtloss.un.cat, wtloss.cs.cat)
+```
+
+
 
 
 \begin{center}
@@ -74,39 +87,84 @@ data=wtloss.uni)
   \end{tabular}
 \end{center}
 
-
-Unstructured vs compound symmetry
-```{r}
-anova(wtloss.un.cat, wtloss.cs.cat)
-```
+LRT yields $G^2$ =  `r -2*(-952.9116) -(-2*(-950.4383)) ` with 8 df (p =0.7633), so we do not reject the null hypothesis
+at $\alpha = 0.05$ and conclude that the assumption of compound symmetry
+covariance structure is adequate for the data.
 
 
 
+### Unstructured vs autoregressive
+$H_0:$ autoregressive is adequate for the data \newline
+$H_1:$ unstructred is required
 
-
-
-
-
-
-
-
-
-Unstructured vs auoregressive
 ```{r}
 anova(wtloss.un.cat, wtloss.ar1.cat)
 ```
 
-Autoregressive vs compound symmetry
+\begin{center}
+  \begin{tabular}{ l  c c }
+  \multicolumn{3}{c}{AR-1 vs. UN} \\
+    \hline \hline
+     & -2 REML & Number of \\ 
+    Structure & Log-Likelihood & Cov. Parameters \\ \hline
+    Autoregressive & `r -2*(-965.6234)` & 10 \\
+    Unstructured & `r -2*(-950.4383)` &  18 \\
+    Difference & `r -2*(-965.6234) -(-2*(-950.4383)) ` & 8 \\
+    \hline
+  \end{tabular}
+\end{center}
+
+LRT yields $G^2$ =  `r -2*(-965.6234) -(-2*(-950.4383)) ` with 8 df (p =0.0002), so we  reject the null hypothesis at $\alpha = 0.05$ and conclude  that the assumption of autoregressive covariance structure is \textcolor{red}{inappropriate, worse?}  when compared to unstructured
+
+
+###Autoregressive vs compound symmetry
 ```{r}
 anova(wtloss.cs.cat, wtloss.ar1.cat)
 #same number of parameters so we compare -2*log(likelihood)
 ```
 
-AUC - test for equality of the area under the curve in two groups.
+Since CS and AR-1 have the same number of parameters = 10 , no LRT is necessary.  We can directly compare their likelihoods, or -2*log(likelihood):
+\begin{itemize}
+\item $-2*log(likelihood)$ for CS = `r -2*(-952.9116)`
+\item $-2*log(likelihood)$ for AR-1 = `r -2*(-965.6234) `
+\end{itemize}
+Since $-2*log(likelihood)$ for CS is smaller  than for AR-1, CS has a higher likelihood
+and we conclude that CS is an  adequate model for the covariance
+structure when compared to AR-1.
+
+\textbf{The most adequate covariance structure is compound symmetry model.}
+
+\textcolor{red}{Are all these tests correct?} \newline
+anova(wtloss.un.cat, wtloss.ar1.cat) \newline
+anova(wtloss.un.cat, wtloss.cs.cat) \newline
+anova(wtloss.ar1.cat, wtloss.cs.cat) \newline
 
 
 
-Parametric curves - quadratic time trend
+
+\begin{center}
+  \begin{tabular}{ l  c c c }
+    \hline \hline
+     & -2 REML & Number of  &\\ 
+    Structure & Log-Likelihood & Cov. Parameters  & AIC\\ \hline
+    Compoud Symmetry &`r -2*(-952.9116)`& 10 & 1925.823 \\
+    Autoregressive & `r -2*(-965.6234)` & 10 & 1951.247\\
+    Unstructured & `r -2*(-950.4383)` &  18 & 1936.877 \\
+
+    \hline
+  \end{tabular}
+\end{center}
+
+Thus, we will use a compound symmetry covariance structure for the remainder of the lab
+
+\newpage
+
+### AUC - test for equality of the area under the curve in two groups.
+
+\newpage
+
+### Parametric curves 
+#### Quadratic time trend
 
 ```{r}
 ## QUADRATIC time, CS, REML,
@@ -126,8 +184,31 @@ method="ML")
 #summary(wtloss.cs.cat.ml)
 ```
 
+$H_0:$ quadratic model \newline
+$H_1:$  saturated mode
 
-Linear time trend
+```{r}
+anova(wtloss.cs.cat.ml, wtloss.cs.quad)
+```
+
+\begin{center}
+  \begin{tabular}{ l  c c }
+  \multicolumn{3}{c}{Testing the Quadratic trend} \\
+    \hline \hline
+     & -2 Log & Number of \\ 
+    Structure & Likelihood & Cov. Parameters \\ \hline
+    Quadratic model & `r -2*(-967.85)` & 8 \\
+    Saturated model & `r -2*(-967.6657)` &  10 \\
+    Difference & `r -2*(-967.85) -(-2*(-967.6657)) ` & 2 \\
+    \hline
+  \end{tabular}
+\end{center}
+
+LRT yields G2 =0.369 (p = 0.8316), so we fail to reject the null hypothesis at
+$\alpha = 0.05$ and conclude that the model with Month as a quadratic effect
+seems to fit the data adequately. (Note: $chi_{2,0.95}^2 = 5.99$)
+
+#### Linear time trend
 
 ```{r}
 wtloss.cs.lin <- gls(wgtloss~month*prog.fac,
@@ -140,7 +221,38 @@ method="ML")
 
 
 
-Testing for intersections 
+$H_0:$ linear model \newline
+$H_1:$ quadratic model
+
+
+
+```{r}
+anova(wtloss.cs.lin, wtloss.cs.quad)
+```
+
+\begin{center}
+  \begin{tabular}{ l  c c }
+  \multicolumn{3}{c}{Linear vs. Quadratic} \\
+    \hline \hline
+     & -2 Log & Number of \\ 
+    Structure & Likelihood & Cov. Parameters \\ \hline
+    Linear model & `r -2*(-968.1477)` & 6 \\
+    Quadratic model & `r -2*(-967.85)` & 8 \\
+    Difference & `r -2*(-968.1477) -(-2*(-967.85)) ` & 2 \\
+    \hline
+  \end{tabular}
+\end{center}
+
+LRT yields G2 =0.596 (p = 0.7425), so we fail to reject the null hypothesis at
+$\alpha = 0.05$ and conclude that the model with Month as a linear effect
+fits the data better than the model with Month as a quadratic effect. (Note: $chi_{2,0.95}^2 = 5.99$)
+
+
+
+
+
+
+#### Testing for intersections 
 
 ```{r}
 ## Linear model, NO interacations
@@ -152,4 +264,45 @@ method="ML")
 #summary(wtloss.cs.lin.noint)
 ```
 
+$H_0: \beta_4 = 0$ \newline
+$H_1 \beta_4 \neq 0$
+
+```{r}
+anova(wtloss.cs.lin)
+```
+
+Since the p-value for month*program is $<0.0001$, we reject the null hypothesis and
+conclude that there is an interaction between month and program. \newline
+
+Thus, our final model is the linear model with interaction. \newline
+
+\textcolor{red}{What can you conclude about the two weight programs in terms of their
+effectiveness?}
+
+\newpage
+
+#### Interpreting quadratic trends:
+$\hat{\beta_1}$ =?? expected mean response at baseline of subjects in program 1. \newline
+$\hat{\beta_1}$=?? change in expected response at baseline of subjects in program 2 vs.
+program 1.\newline
+Rate of change in program 1 is $\beta_2 + 2\beta_3 time_{ij}$ . \newline
+Plugging in the above estimates,
+
+\begin{center}
+  \begin{tabular}{ l  c c }
+  \multicolumn{3}{c}{Program 1} \\
+    \hline \hline
+     & Rate of & Expected \\ 
+    time & Change & Response \\ \hline
+    0 &  &  \\
+    1 &  &  \\
+    2 &  &  \\
+    3 &  &  \\
+    \hline
+  \end{tabular}
+\end{center}
+
+
+\textcolor{red}{Thus, the mean response for Program 1 ?? (increases/decreases) over time.
+What about Program 2?}
 

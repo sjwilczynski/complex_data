@@ -1,0 +1,119 @@
+---
+title: "Complex data lab 2"
+author: "Anna Zaleska"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
+library(ggplot2)
+library(reshape2)
+library(nlme)
+```
+
+### Task 1 
+\textbf{1. what is \textbf{L} for this $H_0$ ? (p.3) }\newline
+L =  $(0,0,1,0)$ \newline
+\textbf{2. What is \textbf{L} for $H_0$ : the mean blood lead level is the same at
+week 4 and week 6? (p.3) } \newline
+L =  $(0,0,1,-1)$  \newline
+\textbf{3. what is r for the $H_0$ in (1) above? (p.9) } \newline
+ r = 3. Output for the test:  \newline
+```{r}
+lead <- read.table(file = "../data/lead.txt", header = FALSE)
+names(lead) <- c("id", paste("y", 1:4, sep=""))
+lead.uni <- data.frame(id=rep(lead$id, each=4),
+  y=as.numeric(t(as.matrix(lead[,2:5]))),
+  time=rep(c(0,1,4,6)),
+  time.cat=rep(1:4))
+
+lead.cat.ml <- gls(y~factor(time),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+lead.cat.no.ml <- gls(y~1,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | factor(time)),
+method = "ML",
+data=lead.uni)
+
+anova(lead.cat.ml, lead.cat.no.ml)
+```
+\textbf{4. However it should not be used to perform LRTs for nested
+models for mean.Why? (p.10)}  \newline
+ REML can't be used to compare  models with different fixed effects. REML's estimates of random effects are derived at the subsequence which is orthogonal to the one spanned by fixed effects. If two models have different projection matrices they are not nested (and not comprable anymore) and thus the likelyhood ratio test should not be performed. \newline
+
+\textbf{5. What type of test was used? What is our conclusion for testing
+parallelism? (p.15)}  \newline
+We used Wald test for model parameters. From p-value for factor(diet):factor(week) which is above signifficance level we can conclude that there is no signifficant group by time effect - we cannot reject the null hipotesis. \newline
+
+\textbf{6. What are our conclusions for testing main effects? What other type test could be used? (p.16)} \newline
+For all parameters p-value is under the signifficance level of 0.05 so we conclude that both time and diet are signifficant. We could use likelihood ratio test or score test.
+
+### Task 2
+
+
+
+(a) The most general model
+
+$X_{1ij} = 1$ for all measurements \newline
+$X_{2ij} = 1$ if the $j$th measurement was taken at $time=2$ weeks, 0 otherwise \newline
+$X_{3ij} = 1$ if the $j$th measurement was taken at $time=3$ weeks, 0 otherwise \newline
+$X_{4ij} = 1$ if the $j$th measurement was taken at $time=4$ weeks, 0 otherwise \newline
+$X_{5ij} = 1$ if the $i$th cow ate barley and lupins, 0 otherwise \newline
+$X_{6ij} = 1$ if the $i$th cow ate only barley, 0 otherwise \newline
+$X_{7ij} = 1$ if the $i$th cow ate barley and lupins and its $j$th measurement is at $time=2$, 0 otherwise \newline
+$X_{8ij} = 1$ if the $i$th cow ate barley and lupins and its $j$th measurement is at $time=3$, 0 otherwise \newline
+$X_{9ij} = 1$  if the $i$th cow ate barley and lupins and its $j$th measurement is at $time=4$, 0 otherwise \newline
+$X_{10ij} = 1$  if the $i$th cow ate only barley and its $j$th measurement is at $time=2$, 0 otherwise \newline
+$X_{11ij} = 1$  if the $i$th cow ate only barley and its $j$th measurement is at $time=3$, 0 otherwise \newline
+$X_{12ij} = 1$  if the $i$th cow ate only barley and its $j$th measurement is at $time=4$, 0 otherwise \newline
+$i = 1, \dots, 52$ cows \newline
+$j=1,\dots,4$ protein measurements \newline
+
+Model:
+$$
+Y_{ij} = \epsilon_{ij} + \beta_1 + \sum_{k=2}^{12} \beta_k X_{kij} 
+$$
+ (b) Test for parallelism \newline
+ We will fit the most general model under REML to test the significance of the diet x week interaction.
+```{r}
+moo <- read.table(file = "../data/mooAll.txt", header = TRUE)
+colnames(moo) <- c("protein", "week", "cow", "diet")
+
+moo.gls.interaction <- gls(protein~factor(diet)*factor(week),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(week)),
+data=moo)
+summary(moo.gls.interaction)
+
+```
+
+Now we will test for parallelism. 
+$$H_0 : \beta_7 = \ldots = \beta_{12} = 0$$  $$H_1 : \text{at least one is non-zero}$$
+
+```{r}
+anova(moo.gls.interaction)
+```
+
+The output shows that  p-value for $factor(week):factor(diet)$ in the multivariate Wald test is 0.3322 which is above standard significance level of 0.05. We do not reject $H_0$ and conclude that there is no signifficant group by time effect.
+
+
+(c) Test the main effects \newline
+We will fit the model without considering iteractions:
+$$ Y_{ij} = \beta_1 + \beta_2 X_{2ij} + \beta_3 X_{3ij} + \beta_4 X_{4ij} + \beta_5 X_{5ij} + \beta_6 X_{6ij}$$
+ and test $$H_0^1: \beta_5 = \beta_6 = 0,$$  $$H_0^2: \beta_2 = \beta_3 = \beta_4 = 0.$$
+```{r}
+moo.gls.fixed <- gls(protein~factor(diet) + factor(week),
+correlation=corSymm(form= ~1 | cow),
+weights=varIdent(form= ~1 | factor(week)),
+data=moo)
+summary(moo.gls.fixed)
+anova(moo.gls.fixed)
+```
+ p-value for $factor(diet)$ is 0.0671, so we do not reject $H_0^1$ and do not confirm the hypothesis that diet is a signifficant factor here. 
+ We do reject $H_0^2$ due to low value of  $factor(time)$ p-value.
