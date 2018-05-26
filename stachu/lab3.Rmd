@@ -149,7 +149,7 @@ No the last test is theoretically not correct, because for non nested models we 
   \begin{tabular}{ l  c c c }
     \hline \hline
      & -2 REML & Number of  &\\ 
-    Structure & Log-Likelihood & Cov. Parameters  & AIC\\ \hline
+    Structure & Log-Likelihood & Parameters  & AIC\\ \hline
     Compound Symmetry & `r -2*un_vs_cs$logLik[2]` & `r un_vs_cs$df[2]` & `r un_vs_cs$AIC[2]` \\
     Autoregressive & `r -2*un_vs_ar$logLik[2]` & `r un_vs_ar$df[2]` &  `r un_vs_ar$AIC[2]`\\
     Unstructured & `r -2*un_vs_cs$logLik[1]` & `r un_vs_cs$df[1]` & `r un_vs_cs$AIC[1]` \\
@@ -206,10 +206,10 @@ method="ML")
 ```
 
 $H_0:$ quadratic model \newline
-$H_1:$  saturated mode
+$H_1:$ saturated mode
 
 ```{r}
-anova(wtloss.cs.cat.ml, wtloss.cs.quad)
+qm_vs_sm <- anova(wtloss.cs.cat.ml, wtloss.cs.quad)
 ```
 
 \begin{center}
@@ -217,17 +217,16 @@ anova(wtloss.cs.cat.ml, wtloss.cs.quad)
   \multicolumn{3}{c}{Testing the Quadratic trend} \\
     \hline \hline
      & -2 Log & Number of \\ 
-    Structure & Likelihood & Cov. Parameters \\ \hline
-    Quadratic model & `r -2*(-967.85)` & 8 \\
-    Saturated model & `r -2*(-967.6657)` &  10 \\
-    Difference & `r -2*(-967.85) -(-2*(-967.6657)) ` & 2 \\
+    Structure & Likelihood & Parameters \\ \hline
+    Quadratic model & `r -2*qm_vs_sm$logLik[2]` & `r qm_vs_sm$df[2]` \\
+    Saturated model & `r -2*qm_vs_sm$logLik[1]` & `r qm_vs_sm$df[1]` \\
+    Difference & `r -2*qm_vs_sm$logLik[2] + 2*qm_vs_sm$logLik[1] ` &  `r qm_vs_sm$df[1]-qm_vs_sm$df[2]` \\
     \hline
   \end{tabular}
 \end{center}
 
-LRT yields G2 =0.369 (p = 0.8316), so we fail to reject the null hypothesis at
-$\alpha = 0.05$ and conclude that the model with Month as a quadratic effect
-seems to fit the data adequately. (Note: $chi_{2,0.95}^2 = 5.99$)
+LRT yields $G^2$ =  `r -2*qm_vs_sm$logLik[2] + 2*qm_vs_sm$logLik[1] ` with `r qm_vs_sm$df[1]-qm_vs_sm$df[2]` df  (p-value = $`r qm_vs_sm$"p-value"[2]`)$, so we fail to reject the null hypothesis at $\alpha = 0.05$ and conclude that the model with Month as a quadratic effect
+seems to fit the data adequately. (Note: $\chi_{2,0.95}^2 = 5.99$)
 
 ### Linear time trend
 
@@ -241,14 +240,11 @@ method="ML")
 ```
 
 
-
 $H_0:$ linear model \newline
 $H_1:$ quadratic model
 
-
-
 ```{r}
-anova(wtloss.cs.lin, wtloss.cs.quad)
+qm_vs_lm <- anova(wtloss.cs.quad, wtloss.cs.lin)
 ```
 
 \begin{center}
@@ -256,21 +252,16 @@ anova(wtloss.cs.lin, wtloss.cs.quad)
   \multicolumn{3}{c}{Linear vs. Quadratic} \\
     \hline \hline
      & -2 Log & Number of \\ 
-    Structure & Likelihood & Cov. Parameters \\ \hline
-    Linear model & `r -2*(-968.1477)` & 6 \\
-    Quadratic model & `r -2*(-967.85)` & 8 \\
-    Difference & `r -2*(-968.1477) -(-2*(-967.85)) ` & 2 \\
+    Structure & Likelihood & Parameters \\ \hline
+    Linear model & `r -2*qm_vs_lm$logLik[2]` & `r qm_vs_lm$df[2]` \\
+    Quadratic model & `r -2*qm_vs_lm$logLik[1]` & `r qm_vs_lm$df[1]` \\
+    Difference & `r -2*qm_vs_lm$logLik[2] + 2*qm_vs_lm$logLik[1] ` &  `r qm_vs_lm$df[1]-qm_vs_lm$df[2]` \\
     \hline
   \end{tabular}
 \end{center}
 
-LRT yields G2 =0.596 (p = 0.7425), so we fail to reject the null hypothesis at
-$\alpha = 0.05$ and conclude that the model with Month as a linear effect
+LRT yields $G^2$ =  `r -2*qm_vs_lm$logLik[2] + 2*qm_vs_lm$logLik[1] ` with `r qm_vs_lm$df[1]-qm_vs_lm$df[2]` df  (p-value = $`r qm_vs_lm$"p-value"[2]`)$, so we fail to reject the null hypothesis at $\alpha = 0.05$ and conclude that the model with Month as a linear effect
 fits the data better than the model with Month as a quadratic effect. (Note: $chi_{2,0.95}^2 = 5.99$)
-
-
-
-
 
 
 ### Testing for intersections 
@@ -286,7 +277,7 @@ method="ML")
 ```
 
 $H_0: \beta_4 = 0$ \newline
-$H_1 \beta_4 \neq 0$
+$H_1: \beta_4 \neq 0$
 
 ```{r}
 anova(wtloss.cs.lin)
@@ -300,9 +291,7 @@ Thus, our final model is the linear model with interaction. \newline
 \textcolor{red}{What can you conclude about the two weight programs in terms of their
 effectiveness?}
 
-\newpage
-
-### Interpreting quadratic trends:
+## Interpreting quadratic trends:
 $\hat{\beta_1}$ =?? expected mean response at baseline of subjects in program 1. \newline
 $\hat{\beta_1}$=?? change in expected response at baseline of subjects in program 2 vs.
 program 1.\newline
@@ -326,151 +315,5 @@ Plugging in the above estimates,
 
 \textcolor{red}{Thus, the mean response for Program 1 ?? (increases/decreases) over time.
 What about Program 2?}
-
-
-
-```{r}
-wtloss <- read.table("../data/weightloss.dat",
-header=F)
-## Give names to variables
-names(wtloss) <- c("id", paste("y", 1:4, sep=""), "program")
-## Univariate format
-wtloss.uni <- data.frame(id=rep(wtloss$id, each=4),
-wgtloss=as.numeric(t(as.matrix(wtloss[,2:5]))),
-program=rep(wtloss$program, each=4),
-month=seq(0,9,3),
-time.cat=rep(1:4))
-wtloss.uni$prog.fac <- factor(wtloss.uni$program, labels=c("1:encourage", "2:none"))
-attach(wtloss.uni)
-wgt.mean <- tapply(wgtloss, list(month, program), mean)
-wgt.sd <- tapply(wgtloss, list(month, program), sd)
-wgt.mean
-wgt.sd
-detach(wtloss.uni)
-```
-```{r}
-
-library(lattice) # Use lattice package
-xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
-```
-
-
-```{r}
-library(nlme)
-
-## CATEGORICAL time, UN, REML
-wtloss.un.cat <- gls(wgtloss~factor(month)*prog.fac,
-correlation=corSymm(form= ~1 | id),
-weights=varIdent(form= ~1 | month),
-data=wtloss.uni)
-#summary(wtloss.un.cat)
-
-## CATEGORICAL time, CS, REML
-wtloss.cs.cat <- gls(wgtloss~factor(month)*prog.fac,
-correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni)
-#summary(wtloss.cs.cat)
-
-## CATEGORICAL time, AR1, REML
-wtloss.ar1.cat <- gls(wgtloss~factor(month)*prog.fac,
-correlation=corAR1(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni)
-#summary(wtloss.ar1.cat)
-```
-
-
-
-\begin{center}
-  \begin{tabular}{ l  c c }
-  \multicolumn{3}{c}{CS vs. UN} \\
-    \hline \hline
-     & -2 REML & Number of \\ 
-    Structure & Log-Likelihood & Cov. Parameters \\ \hline
-    Compound Symmetry & `r -2*(-952.9116)` & 10 \\
-    Unstructured & `r -2*(-950.4383)` &  18 \\
-    Difference & `r -2*(-952.9116) -(-2*(-950.4383)) ` & 8 \\
-    \hline
-  \end{tabular}
-\end{center}
-
-
-Unstructured vs compound symmetry
-```{r}
-anova(wtloss.un.cat, wtloss.cs.cat)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-Unstructured vs auoregressive
-```{r}
-anova(wtloss.un.cat, wtloss.ar1.cat)
-```
-
-Autoregressive vs compound symmetry
-```{r}
-anova(wtloss.cs.cat, wtloss.ar1.cat)
-#same number of parameters so we compare -2*log(likelihood)
-```
-
-AUC - test for equality of the area under the curve in two groups.
-
-
-
-Parametric curves - quadratic time trend
-
-```{r}
-## QUADRATIC time, CS, REML,
-wtloss.cs.quad <- gls(wgtloss~month*prog.fac + I(month^2)*prog.fac,
-correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni,
-method="ML")
-#summary(wtloss.cs.quad)
-
-## CATEGORICAL time, CS, ML
-wtloss.cs.cat.ml <- gls(wgtloss~factor(month)*prog.fac,
-correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni,
-method="ML")
-#summary(wtloss.cs.cat.ml)
-```
-
-
-Linear time trend
-
-```{r}
-wtloss.cs.lin <- gls(wgtloss~month*prog.fac,
-correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni,
-method="ML")
-#summary(wtloss.cs.lin)
-```
-
-
-
-Testing for intersections 
-
-```{r}
-## Linear model, NO interacations
-wtloss.cs.lin.noint <- gls(wgtloss~month + prog.fac,
-correlation=corCompSymm(form= ~1 | id),
-weights=varIdent(form= ~1),
-data=wtloss.uni,
-method="ML")
-#summary(wtloss.cs.lin.noint)
-```
 
 
