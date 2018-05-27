@@ -284,17 +284,36 @@ anova(wtloss.cs.lin)
 ```
 
 Since the p-value for month*program is $<0.0001$, we reject the null hypothesis and
-conclude that there is an interaction between month and program. \newline
+conclude that there is a significant interaction between month and program. \newline
 
 Thus, our final model is the linear model with interaction. \newline
+
+```{r}
+final.wtloss.cs.lin <- gls(wgtloss~month*prog.fac,
+correlation=corCompSymm(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=wtloss.uni)
+summary(final.wtloss.cs.lin)
+```
+
 
 \textcolor{red}{What can you conclude about the two weight programs in terms of their
 effectiveness?}
 
 ## Interpreting quadratic trends:
-$\hat{\beta_1}$ =?? expected mean response at baseline of subjects in program 1. \newline
-$\hat{\beta_1}$=?? change in expected response at baseline of subjects in program 2 vs.
-program 1.\newline
+```{r}
+wtloss.cs.quad.noint <- gls(wgtloss~month + prog.fac + I(month^2),
+correlation=corCompSymm(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=wtloss.uni)
+ncoefs <- wtloss.cs.quad.noint$coefficients
+coefs <- c(ncoefs[1], ncoefs[2], ncoefs[4], ncoefs[3])
+change_rates <- coefs[2] + 2*coefs[3]*t[1:4] 
+expected1 <- coefs[1] + coefs[2]*t[1:4] + coefs[3]*t[1:4]*t[1:4]
+```
+
+$\hat{\beta_1} =$ `r coefs[1]` expected mean response at baseline of subjects in program 1. \newline
+$\hat{\beta_4} =$ `r coefs[4]` change in expected response at baseline of subjects in program 2 vs. program 1.\newline
 Rate of change in program 1 is $\beta_2 + 2\beta_3 time_{ij}$ . \newline
 Plugging in the above estimates,
 
@@ -304,16 +323,15 @@ Plugging in the above estimates,
     \hline \hline
      & Rate of & Expected \\ 
     time & Change & Response \\ \hline
-    0 &  &  \\
-    1 &  &  \\
-    2 &  &  \\
-    3 &  &  \\
+    0 &  `r change_rates[1]` & `r expected1[1]` \\
+    1 &  `r change_rates[2]` & `r expected1[2]` \\
+    2 &  `r change_rates[3]` & `r expected1[3]` \\
+    3 &  `r change_rates[4]` & `r expected1[4]` \\
     \hline
   \end{tabular}
 \end{center}
 
 
-\textcolor{red}{Thus, the mean response for Program 1 ?? (increases/decreases) over time.
-What about Program 2?}
+Thus, the mean response for Program 1 decreases over time. For the second program it is exactly the same - in this case for every time point `r coefs[4]` is added to the expected respons, because in our model we don't include any interactions and the group effect is incorporated just by adding a constant.
 
 
