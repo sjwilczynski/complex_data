@@ -1,8 +1,6 @@
 ---
 title: "Complex Data - lab3"
 author: "Stanisław Wilczyński"
-header-includes:
-   - \usepackage{xcolor}
 output: pdf_document
 ---
 
@@ -44,6 +42,11 @@ xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
 
 ## Choice of covariance structure
 
+We will consider three covariance structures: \newline
+1. Unstructured (UN) \newline
+2. Compound symmetry (CS) \newline
+3. Autoregressive (AR-1) \newline
+
 ```{r}
 
 ## CATEGORICAL time, UN, REML
@@ -68,7 +71,7 @@ data=wtloss.uni)
 #summary(wtloss.ar1.cat)
 ```
 
-### Unstructured vs compound symmetry
+### Compound symmetry vs unstructured 
 
 $H_0:$ compound symmetry is adequate for the data \newline
 $H_1:$ unstructured is required
@@ -94,12 +97,9 @@ so we do not reject the null hypothesis
 at $\alpha = 0.05$ and conclude that the assumption of compound symmetry
 covariance structure is adequate for the data.
 
+### Autoregressive vs unstructered
 
-
-
-### Unstructured vs autoregressive
-
-$H_0:$ autoregressive is adequate for the data
+$H_0:$ autoregressive is adequate for the data \newline
 $H_1$: unstructured is required
 
 ```{r}
@@ -123,14 +123,12 @@ LRT yields $G^2$ =  `r -2*un_vs_ar$logLik[2] + 2*un_vs_ar$logLik[1] ` with `r un
 structure is not adequate when compared to unstructured.
 
 
-
-
-### Autoregressive vs compound symmetry
+### Compound symmetry vs autoregressive 
 ```{r}
 cs_vs_ar1 <- anova(wtloss.cs.cat, wtloss.ar1.cat)
 ```
 
-Since CS and AR-1 have the same number of parameters = 10 , no LRT is necessary.  We can directly compare their likelihoods, or -2*log(likelihood):
+Since CS and AR-1 have the same number of parameters = 10, no LRT is necessary.  We can directly compare their likelihoods, or -2*log(likelihood):
 \begin{itemize}
 \item $-2*log(likelihood)$ for CS = `r -2*un_vs_cs$logLik[2]`
 \item $-2*log(likelihood)$ for AR-1 = `r -2*un_vs_ar$logLik[2]`
@@ -141,9 +139,9 @@ structure when compared to AR-1.
 
 \textbf{The most adequate covariance structure is compound symmetry model.}
 
-Are all these tests correct? \newline
+Are all these tests correct?
 
-No the last test is theoretically not correct, because for non nested models we can't just compare log-likelihoods or perform LRT. We have to comapre AIC or BIC instead. However, in this case the number of parameters is the same, so comparing likelihoods is equivalent to comparing AICs.
+No, the last test is theoretically not correct, because for non nested models we shouldn't draw conclusions just basing on comparison of log-likelihoods or performing LRT. We should compare AIC or BIC instead. However, in this case the number of parameters is the same, so comparing likelihoods is equivalent to comparing AICs. Moreover, when comparing many models instead of pairwise tests we can use a better strategy and choose the one with the lowest value of AIC.
 
 \begin{center}
   \begin{tabular}{ l  c c c }
@@ -167,16 +165,17 @@ Thus, we will use a compound symmetry covariance structure for the remainder of 
 t <- wtloss.uni$month
 L2 <- 0.5*c(t[1] + t[2] - 2*t[4], t[3] - t[1], t[4]-t[2], t[4]-t[3])
 coefs <- summary(wtloss.cs.cat)$coefficients
+#Estimated mean AUC in encouragement program
 AUC_enc <- sum(L2 * wgt.mean[,1])
+#Estimated mean AUC in no encouragement program
 AUC_none <- sum(L2 * wgt.mean[,2])
-y_mean_enc <- mean(wtloss.uni$wgtloss[which(wtloss.uni$program==1)])
 ```
 The obtained values of AUCs are:
 
 Estimated mean AUC in encouragement program is `r AUC_enc`. \newline
 Estimated mean AUC in no encouragement program is `r AUC_none`.
 
-As written in the textbook to test for the equality of AUCs, we test for the contrast $(-L_2, L_2)$.
+As written in the textbook to test for the equality of AUCs, we employ the contrast $(-L_2, L_2)$.
 ```{r}
 L <- c(-L2, L2)
 anova(wtloss.cs.cat, L=L)
@@ -194,7 +193,6 @@ correlation=corCompSymm(form= ~1 | id),
 weights=varIdent(form= ~1),
 data=wtloss.uni,
 method="ML")
-#summary(wtloss.cs.quad)
 
 ## CATEGORICAL time, CS, ML
 wtloss.cs.cat.ml <- gls(wgtloss~factor(month)*prog.fac,
@@ -202,7 +200,6 @@ correlation=corCompSymm(form= ~1 | id),
 weights=varIdent(form= ~1),
 data=wtloss.uni,
 method="ML")
-#summary(wtloss.cs.cat.ml)
 ```
 
 $H_0:$ quadratic model \newline
@@ -236,7 +233,6 @@ correlation=corCompSymm(form= ~1 | id),
 weights=varIdent(form= ~1),
 data=wtloss.uni,
 method="ML")
-#summary(wtloss.cs.lin)
 ```
 
 
@@ -264,7 +260,7 @@ LRT yields $G^2$ =  `r -2*qm_vs_lm$logLik[2] + 2*qm_vs_lm$logLik[1] ` with `r qm
 fits the data better than the model with Month as a quadratic effect. (Note: $chi_{2,0.95}^2 = 5.99$)
 
 
-### Testing for intersections 
+### Testing for intersections in the linear model
 
 ```{r}
 ## Linear model, NO interacations
@@ -273,7 +269,6 @@ correlation=corCompSymm(form= ~1 | id),
 weights=varIdent(form= ~1),
 data=wtloss.uni,
 method="ML")
-#summary(wtloss.cs.lin.noint)
 ```
 
 $H_0: \beta_4 = 0$ \newline
@@ -281,9 +276,11 @@ $H_1: \beta_4 \neq 0$
 
 ```{r}
 anova(wtloss.cs.lin)
+#we employ proper contrast
+anova(wtloss.cs.lin, L=c(0,0,0,1))
 ```
 
-Since the p-value for month*program is $<0.0001$, we reject the null hypothesis and
+Since the p-value for month*program is almost $0$, we reject the null hypothesis and
 conclude that there is a significant interaction between month and program. \newline
 
 Thus, our final model is the linear model with interaction. \newline
@@ -296,9 +293,7 @@ data=wtloss.uni)
 summary(final.wtloss.cs.lin)
 ```
 
-
-\textcolor{red}{What can you conclude about the two weight programs in terms of their
-effectiveness?}
+In terms of effectiveness we can conclude that the first program is much more effective than the second one: in the first group the estimated rate of change equals $\hat\beta_2 =$ `r final.wtloss.cs.lin$coefficients[2]` whereas in the second group estimated rate of change is $\hat\beta_2 + \hat\beta_4 =$  `r final.wtloss.cs.lin$coefficients[2] + final.wtloss.cs.lin$coefficients[4]`.
 
 ## Interpreting quadratic trends:
 ```{r}
@@ -332,6 +327,4 @@ Plugging in the above estimates,
 \end{center}
 
 
-Thus, the mean response for Program 1 decreases over time. For the second program it is exactly the same - in this case for every time point `r coefs[4]` is added to the expected respons, because in our model we don't include any interactions and the group effect is incorporated just by adding a constant.
-
-
+Thus, the mean response for Program 1 decreases over time. For the second program the effect is exactly the same - in this case for every time point `r coefs[4]` is added to the expected response, because in our model we don't include any interactions and the group effect is incorporated just by adding a constant.
