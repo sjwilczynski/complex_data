@@ -1,0 +1,116 @@
+---
+title: "Complex Data - lab4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
+library(ggplot2)
+library(reshape2)
+library(nlme)
+library(lattice)
+```
+
+
+```{r}
+hrunbalanced <- read.csv(file = "../data/hrunbalanced.csv", header = TRUE)
+means <- tapply(hrunbalanced$hr, list(hrunbalanced$time, hrunbalanced$drug), mean)
+xyplot(hr~time|factor(drug), type='l',groups=id,data=hrunbalanced, main = "Spaghetti plot of the heart rate over time in 2 groups")
+```
+```{r}
+## Random intercept
+fit.RandInt <- lme(hr ~ time*factor(drug),
+random=~1|id,
+data=hrunbalanced)
+
+fit.RandSlp <- lme(hr ~ time*factor(drug),
+random=~1+time|id,
+data=hrunbalanced)
+
+anova(fit.RandInt, fit.RandSlp)
+```
+```{r}
+summary(fit.RandSlp)
+```
+```{r}
+varCorr <- VarCorr(fit.RandSlp)
+```
+```{r}
+covar <- getVarCov(fit.RandSlp)
+```
+```{r}
+print(matrix(fit.RandSlp$coefficients$fixed, ncol = 1))
+```
+## Task 1
+
+
+```{r}
+coefs <- fit.RandSlp$coefficients$fixed
+coefs <- matrix(c(coefs[1], coefs[3], coefs[2], coefs[4]), ncol = 1)
+
+
+ones <- matrix(rep(1,6), nrow=6)
+zeros <- matrix(rep(0,6), nrow = 6)
+tN <- matrix(c(0,1,5,15,30,60), nrow = 6)
+t1 <- matrix(hrunbalanced$time[1:6], nrow = 6)
+t2 <- matrix(hrunbalanced$time[7:12], nrow = 6)
+t13 <- matrix(hrunbalanced$time[73:76], nrow = 4)
+x1 <- cbind(ones,zeros,t1,zeros)
+x2 <- cbind(ones,zeros, t2,zeros)
+x13 <- cbind(ones[1:4,],ones[1:4,],t13,t13)
+xNA <- cbind(ones, zeros, tN, zeros)
+xNB <- cbind(ones, ones, tN, ones)
+ZN <- cbind(ones,tN)
+Z1 <- cbind(ones,t1)
+Z2 <- cbind(ones, t2)
+Z13 <- cbind(ones[1:4], t13)
+```
+
+Means:
+```{r}
+print(xNA%*%coefs)
+print(xNB%*%coefs)
+print(x1%*%coefs)
+print(x2%*%coefs)
+print(x13%*%coefs)
+```
+
+Covariances:
+```{r}
+getCov <- function(Z){
+  Z%*%covar%*%t(Z) + as.numeric(varCorr[3,1])*diag(1,nrow = dim(Z)[1], ncol = dim(Z)[1])
+}
+print(getCov(ZN))
+print(getCov(Z1))
+print(getCov(Z2))
+print(getCov(Z13))
+```
+
+## Task 2
+
+```{r}
+## step one
+coef.hr <- matrix(NA,ncol = 4, nrow = 0)
+for (i in unique(hrunbalanced$id)) {
+  model <- lm(hr~time, data = hrunbalanced, subset = id == i)
+  model.drug <- unique(hrunbalanced[hrunbalanced$id == i, "drug"])
+  coef.hr <- rbind(coef.hr, c(i, model.drug, coef(model)))
+}
+colnames(coef.hr) <- c("id","drug","intercept","slope")
+coef.hr <- as.data.frame(coef.hr)
+coef.hr
+```
+
+```{r}
+
+### step two
+hr.int <- lm(intercept~drug, data = coef.hr)
+hr.slp <- lm(slope~drug, data=coef.hr)
+
+summary(hr.int)
+summary(hr.slp)
+
+```
+## te 4 wartosci do tabelki dla two-staged mozna wziac jakos wpolczynniki z intercepts (pierwsze 2) i sloper (drugie 2)
