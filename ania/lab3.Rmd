@@ -12,33 +12,37 @@ library(nlme)
 library(lattice)
 ```
 
+### Data input and calculating means
 ```{r}
 wtloss <- read.table("../data/weightloss.dat",
 header=F)
+
 ## Give names to variables
 names(wtloss) <- c("id", paste("y", 1:4, sep=""), "program")
+
 ## Univariate format
 wtloss.uni <- data.frame(id=rep(wtloss$id, each=4),
 wgtloss=as.numeric(t(as.matrix(wtloss[,2:5]))),
 program=rep(wtloss$program, each=4),
 month=seq(0,9,3),
 time.cat=rep(1:4))
+
 wtloss.uni$prog.fac <- factor(wtloss.uni$program, labels=c("1:encourage", "2:none"))
 attach(wtloss.uni)
 wgt.mean <- tapply(wgtloss, list(month, program), mean)
 wgt.sd <- tapply(wgtloss, list(month, program), sd)
-#wgt.mean
-#wgt.sd
+wgt.mean
+wgt.sd
 detach(wtloss.uni)
 ```
 
-```{r}
 
- # Use lattice package
-#xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
+### Plotting response profiles
+```{r}
+xyplot(wgtloss~month|prog.fac, type='l',groups=id,data=wtloss.uni)
 ```
 
-The most general mean models with different covariance classes:
+#### The most general mean models with different covariance classes:
 
 ```{r}
 
@@ -114,14 +118,10 @@ anova(wtloss.un.cat, wtloss.ar1.cat)
   \end{tabular}
 \end{center}
 
-LRT yields $G^2$ =  `r -2*(-965.6234) -(-2*(-950.4383)) ` with 8 df (p =0.0002), so we  reject the null hypothesis at $\alpha = 0.05$ and conclude  that the assumption of autoregressive covariance structure is \textcolor{red}{inappropriate, worse?}  when compared to unstructured
+LRT yields $G^2$ =  `r -2*(-965.6234) -(-2*(-950.4383)) ` with 8 df (p =0.0002), so we  reject the null hypothesis at $\alpha = 0.05$ and conclude  that the assumption of autoregressive covariance structure is inappropriate  when compared to unstructured
 
 
 ###Autoregressive vs compound symmetry
-```{r}
-anova(wtloss.cs.cat, wtloss.ar1.cat)
-#same number of parameters so we compare -2*log(likelihood)
-```
 
 Since CS and AR-1 have the same number of parameters = 10 , no LRT is necessary.  We can directly compare their likelihoods, or -2*log(likelihood):
 \begin{itemize}
@@ -134,12 +134,12 @@ structure when compared to AR-1.
 
 \textbf{The most adequate covariance structure is compound symmetry model.}
 
-\textcolor{red}{Are all these tests correct?} \newline
+Are all these tests correct? \newline
 anova(wtloss.un.cat, wtloss.ar1.cat) \newline
 anova(wtloss.un.cat, wtloss.cs.cat) \newline
 anova(wtloss.ar1.cat, wtloss.cs.cat) \newline
 
-
+First two tests are correct. The last one is theoretically incorrect because autoregressive and compound symmetry models are not nested and we should not compare their log-likelihoods or perform LRT on them. In such a case we can compare AIC to find the best model but in our situation both models have the same number of parameters so comparing AICs is the same as comparing likelihoods and thus we can do it.
 
 
 \begin{center}
@@ -160,6 +160,27 @@ Thus, we will use a compound symmetry covariance structure for the remainder of 
 \newpage
 
 ### AUC - test for equality of the area under the curve in two groups.
+
+```{r}
+t <- wtloss.uni$month
+L2 <- 0.5*c(t[1] + t[2] - 2*t[4], t[3] - t[1], t[4]-t[2], t[4]-t[3])
+coefs <- summary(wtloss.cs.cat)$coefficients
+AUC_enc <- sum(L2 * wgt.mean[,1])
+AUC_none <- sum(L2 * wgt.mean[,2])
+```
+
+Estimated mean AUC in encouragement program is `r AUC_enc`. \newline
+Estimated mean AUC in no encouragement program is `r AUC_none`. \newline
+
+Testing for the equality of AUCs:\newline
+We will use the contrast $(-L_2,L_2)$.
+
+```{r}
+L <- c(-L2, L2)
+anova(wtloss.cs.cat, L=L)
+```
+
+Because of p-value which is < 0.0001 we reject the null hypothesis and conclude that response profile is the same for both treatments.
 
 \newpage
 
@@ -265,10 +286,10 @@ method="ML")
 ```
 
 $H_0: \beta_4 = 0$ \newline
-$H_1 \beta_4 \neq 0$
+$H_1:  \beta_4 \neq 0$
 
 ```{r}
-anova(wtloss.cs.lin)
+anova(wtloss.cs.lin, L= c(0,0,0,1))
 ```
 
 Since the p-value for month*program is $<0.0001$, we reject the null hypothesis and
@@ -276,14 +297,37 @@ conclude that there is an interaction between month and program. \newline
 
 Thus, our final model is the linear model with interaction. \newline
 
-\textcolor{red}{What can you conclude about the two weight programs in terms of their
-effectiveness?}
+```{r}
+wtloss.cs.lin.final <- gls(wgtloss~month*prog.fac,
+correlation=corCompSymm(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=wtloss.uni)
+summary(wtloss.cs.lin.final)$coefficients
+```
+
+What can you conclude about the two weight programs in terms of their
+effectiveness? \newline
+Let us look at estimated rate of change for both programs. \newline
+First program:  $\hat\beta_2 =$ `r wtloss.cs.lin.final$coefficients[2]` \newline
+Second program:  $\hat\beta_2 + \hat\beta_4 =$ `r wtloss.cs.lin.final$coefficients[2] + wtloss.cs.lin.final$coefficients[4]` \newline
+We can conclude that program with receiving encouragement is much more effective than the one without.
 
 \newpage
 
 #### Interpreting quadratic trends:
-$\hat{\beta_1}$ =?? expected mean response at baseline of subjects in program 1. \newline
-$\hat{\beta_1}$=?? change in expected response at baseline of subjects in program 2 vs.
+```{r}
+wtloss.cs.quad.noint <- gls(wgtloss~month + prog.fac + I(month^2),
+correlation=corCompSymm(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=wtloss.uni)
+
+coefficients.m <- wtloss.cs.quad.noint$coefficients
+coefficients <- c(coefficients.m[1], coefficients.m[2], coefficients.m[4], coefficients.m[3])
+change_rates <- coefficients[2] + 2*coefficients[3]*t[1:4] 
+expected1 <- coefficients[1] + coefficients[2]*t[1:4] + coefficients[3]*t[1:4]*t[1:4]
+```
+$\hat{\beta_1}$ = `r coefficients[1]` expected mean response at baseline of subjects in program 1. \newline
+$\hat{\beta_4}$= `r coefficients[4]` change in expected response at baseline of subjects in program 2 vs.
 program 1.\newline
 Rate of change in program 1 is $\beta_2 + 2\beta_3 time_{ij}$ . \newline
 Plugging in the above estimates,
@@ -294,15 +338,15 @@ Plugging in the above estimates,
     \hline \hline
      & Rate of & Expected \\ 
     time & Change & Response \\ \hline
-    0 &  &  \\
-    1 &  &  \\
-    2 &  &  \\
-    3 &  &  \\
+    0 & `r change_rates[1]` & `r expected1[1]` \\
+    1 & `r change_rates[2]` & `r expected1[2]` \\
+    2 & `r change_rates[3]` & `r expected1[3]` \\
+    3 & `r change_rates[4]` & `r expected1[4]` \\
     \hline
   \end{tabular}
 \end{center}
 
 
-\textcolor{red}{Thus, the mean response for Program 1 ?? (increases/decreases) over time.
-What about Program 2?}
+Thus, the mean response for Program 1 decreases over time. For the second program effect is the same. We need to add $\hat{\beta_4}$ to the expected response at each time point but the trend remains.
+
 

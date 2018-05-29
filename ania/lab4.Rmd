@@ -1,0 +1,60 @@
+---
+title: "Complex Data lab 4"
+author: "Anna Zaleska"
+date: "29 maja 2018"
+output: pdf_document
+---
+
+```{r}
+hrunbalanced <- read.csv("../data/hrunbalanced.csv")
+hrunbalanced$drug <- as.factor(hrunbalanced$drug)
+hrunbalanced$id <- as.factor(hrunbalanced$id)
+hrunbalanced$time <- as.factor(hrunbalanced$time)
+hrunbalanced$hr <- as.numeric(hrunbalanced$hr)
+head(hrunbalanced)
+```
+
+```{r}
+library(ggplot2)
+p <- ggplot(hrunbalanced, aes(x=time, y=hr, color = id)) + geom_line()
+p <- p + facet_grid(.~drug, shrink = TRUE, as.table = FALSE)
+p
+```
+
+
+
+```{r}
+p1_data <- hrunbalanced[hrunbalanced$id ]
+
+```
+
+
+
+```{r}
+## 2-step analysis
+
+
+### step one
+hrunbalanced <- read.csv("../data/hrunbalanced.csv")
+
+coef.hr <- matrix(NA,ncol = 4, nrow = 0)
+for (i in unique(hrunbalanced$id)) {
+  model <- lm(hr~time, data = hrunbalanced, subset = id == i)
+  model.drug <- unique(hrunbalanced[hrunbalanced$id == i, "drug"])
+  coef.hr <- rbind(coef.hr, c(i, model.drug, coef(model)))
+}
+colnames(coef.hr) <- c("id","drug","intercept","slope")
+coef.hr <- as.data.frame(coef.hr)
+coef.hr
+```
+
+```{r}
+
+### step two
+hr.int <- lm(intercept~drug, data = coef.hr)
+hr.slp <- lm(slope~drug, data=coef.hr)
+
+summary(hr.int)
+summary(hr.slp)
+
+```
