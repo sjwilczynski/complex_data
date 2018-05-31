@@ -14,33 +14,149 @@ library(lattice)
 library(lme4)
 library(nlme)
 #library(lmerTest)
+
 data(kidney)
 ```
 
 
 ```{r}
+
+xy_kidney <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+lkidney$ltime <- log(lkidney$time)
+
+xyplot(MDRD ~ time | id, xy_kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
+xyplot(MDRD ~ ltime | id, xy_kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
+
 lkidney <- reshape(kidney, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
 lkidney$ltime <- log(lkidney$time)
 
-lkidney.plot <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
-lkidney.plot$ltime <- log(lkidney.plot$time)
-
-xyplot(MDRD ~ time | id, lkidney.plot, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
-xyplot(MDRD ~ ltime | id, lkidney.plot, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
 ```
 
 
 ### Analiza bez efektów losowych (Stachu)
+```{r}
+attach(lkidney)
+detach(lkidney)
+```
 
 ```{r}
+for(i in 1:8){
+  model.variable <- lm(MDRD ~ lkidney[,i], data = lkidney)
+  print(paste("Model for", colnames(lkidney)[i]))
+  print(summary(model.variable))
+  print("---------------------------------------------------------------------------")
+  #donor.age, CIT, discrepanacy.DR
+}
+```
+
+
+
+
+```{r}
+un.model.reml <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney)
+
+cs.model.reml <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corCompSymm(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=lkidney)
+
+ar.model.reml <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corAR1(form= ~1 | id),
+weights=varIdent(form= ~1),
+data=lkidney)
+
+car.model.reml <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corCAR1(form= ~ltime | id),
+data=lkidney)
 
 ```
 
 
-### Analiza z efektami losowymi (Ania)
+```{r}
+covar <- getVarCov(un.model)
+anova(un.model.reml,ar.model.reml, cs.model.reml, car.model.reml)
+print(covar)
+```
+```{r}
+un.model <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+un.model.no.int <- gls(MDRD~factor(time)+(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+quad.model <- gls(MDRD~(ltime + I(ltime^2))*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+lin.model <- gls(MDRD~ltime*(donor.age+bpl.drugs+recipient.age+discrepancy.AB+diabetes+discrepancy.DR+CIT+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+```
 
 
 ```{r}
+anova(quad.model, un.model)
+anova(quad.model, lin.model)
+anova(un.model, lin.model)
+anova(un.model.no.int, un.model)
+anova(un.model)
+```
+
+```{r}
+simpler.un.model <- gls(MDRD~factor(time)*(donor.age+bpl.drugs+diabetes+therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+simpler.un.model2 <- gls(MDRD~factor(time)*(donor.age+bpl.drugs),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+```
+
+```{r}
+anova(un.model, simpler.un.model2, simpler.un.model)
+```
+
+```{r}
+simpler.un.model.no.int <- gls(MDRD~factor(time)+(donor.age+bpl.drugs),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+simpler.un.model.lin <- gls(MDRD~ltime+donor.age+bpl.drugs,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+simpler.un.model.quad <- gls(MDRD~ltime+I(ltime^2)+donor.age+bpl.drugs,
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+```
+
+```{r}
+anova(un.model, simpler.un.model.no.int, simpler.un.model.lin, simpler.un.model.quad)
+```
+
+
+
+### Ania
+
+
+
+```{r}
+
 const.mixed.model <- lmer(MDRD~ltime+(1|id),
                          data = lkidney, REML = FALSE)
 summary(const.mixed.model)
@@ -91,9 +207,6 @@ full.model2 <- lme(MDRD~donor.age + recipient.age + therapy + diabetes + bpl.dru
 summary(full.model2)
 ```
 
-
-
-
 ```{r}
 anova(full.model2)
 ```
@@ -116,3 +229,7 @@ qqPlot(ranef(final.model2)[,1], envelope = FALSE, ylab = expression(c[i]))
 ```{r}
 ranef(final.model2)[,1]
 ```
+
+
+
+
