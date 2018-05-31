@@ -1,0 +1,40 @@
+---
+title: "Complex data - project"
+author: "Stanisław Wilczyński, Anna Zaleska"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(results = 'asis');
+options(xtable.comment=FALSE)
+library(PBImisc)
+library(xtable)
+library(lattice)
+data(kidney)
+```
+
+
+```{r}
+lkidney <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+lkidney$ltime <- log(lkidney$time)
+
+xyplot(MDRD ~ time | id, lkidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
+xyplot(MDRD ~ ltime | id, lkidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
+```
+
+
+### Analiza bez efektów losowych (Stachu)
+
+```{r}
+
+```
+
+
+### Analiza z efektami losowymi (Ania)
+
+
+```{r}
+
+```
+
