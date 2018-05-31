@@ -5,22 +5,28 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-knitr::opts_chunk$set(results = 'asis');
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(results = 'asis');
 options(xtable.comment=FALSE)
 library(PBImisc)
 library(xtable)
 library(lattice)
+library(lme4)
+library(nlme)
+#library(lmerTest)
 data(kidney)
 ```
 
 
 ```{r}
-lkidney <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+lkidney <- reshape(kidney, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
 lkidney$ltime <- log(lkidney$time)
 
-xyplot(MDRD ~ time | id, lkidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
-xyplot(MDRD ~ ltime | id, lkidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
+lkidney.plot <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+lkidney.plot$ltime <- log(lkidney.plot$time)
+
+xyplot(MDRD ~ time | id, lkidney.plot, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
+xyplot(MDRD ~ ltime | id, lkidney.plot, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
 ```
 
 
@@ -35,6 +41,78 @@ xyplot(MDRD ~ ltime | id, lkidney, type=c("g","p","r"), xlab = "log(time since t
 
 
 ```{r}
+const.mixed.model <- lmer(MDRD~ltime+(1|id),
+                         data = lkidney, REML = FALSE)
+summary(const.mixed.model)
+
+const.mixed.model2 <- lme(MDRD~ltime, random =~1|factor(id),
+                         data = lkidney, method = "ML")
+summary(const.mixed.model2)
+```
+
+
+
+```{r}
+lin.mixed.model <- lmer(MDRD~ltime+ (ltime|id),
+                         data = lkidney, REML = FALSE)
+summary(lin.mixed.model)
+lin.mixed.model2 <- lme(MDRD~ltime, random =~ltime|factor(id),
+                         data = lkidney, method = "ML")
+summary(lin.mixed.model2)
+```
+
+
+```{r}
+
+quadr.mixed.model <- lmer(MDRD~ltime + I(ltime^2) + (ltime + I(ltime^2)|id),
+                         data = lkidney, REML = FALSE)
+summary(quadr.mixed.model)
+quadr.mixed.model2 <- lme(MDRD~ltime + I(ltime^2), random =~ltime + I(ltime^2)|factor(id),
+                         data = lkidney, method = "ML")
+summary(quadr.mixed.model2) 
 
 ```
 
+
+```{r}
+anova(const.mixed.model,lin.mixed.model,quadr.mixed.model)
+```
+
+
+```{r}
+anova(const.mixed.model2,lin.mixed.model2,quadr.mixed.model2)
+```
+
+```{r}
+full.model <- lmer(MDRD~donor.age + recipient.age + therapy + diabetes + bpl.drugs + discrepancy.AB + discrepancy.DR + ltime + I(ltime^2) + (ltime + I(ltime^2)|id), data = lkidney, REML = FALSE)
+summary(full.model)
+
+full.model2 <- lme(MDRD~donor.age + recipient.age + therapy + diabetes + bpl.drugs + discrepancy.AB + discrepancy.DR + ltime + I(ltime^2)  , random =~ltime + I(ltime^2)|factor(id), data = lkidney,  method = "ML")
+summary(full.model2)
+```
+
+
+
+
+```{r}
+anova(full.model2)
+```
+
+```{r}
+final.model <- lme(MDRD~donor.age + bpl.drugs + ltime + I(ltime^2)  , random =~ltime + I(ltime^2)|factor(id), data = lkidney,  method = "ML")
+final.model2 <- lme(MDRD~donor.age + therapy +  bpl.drugs + ltime + I(ltime^2)  , random =~ltime + I(ltime^2)|factor(id), data = lkidney,  method = "ML")
+anova(final.model, final.model2)
+```
+
+
+```{r}
+library(car)
+qqPlot(ranef(final.model2)[,1], envelope = FALSE, ylab = expression(a[i]))
+qqPlot(ranef(final.model2)[,1], envelope = FALSE, ylab = expression(b[i]))
+qqPlot(ranef(final.model2)[,1], envelope = FALSE, ylab = expression(c[i]))
+```
+
+
+```{r}
+ranef(final.model2)[,1]
+```
