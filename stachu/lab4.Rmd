@@ -2,6 +2,9 @@
 title: "Complex Data - lab4"
 author: "Stanisław Wilczyński"
 output: pdf_document
+header-includes:
+- \usepackage{float}
+- \usepackage{booktabs}
 ---
 
 ```{r setup, include=FALSE}
@@ -12,6 +15,9 @@ library(ggplot2)
 library(reshape2)
 library(nlme)
 library(lattice)
+library(magrittr)
+library(knitr)
+library(kableExtra)
 ```
 
 
@@ -26,32 +32,21 @@ fit.RandInt <- lme(hr ~ time*factor(drug),
 random=~1|id,
 data=hrunbalanced)
 
+#Random slope
 fit.RandSlp <- lme(hr ~ time*factor(drug),
 random=~1+time|id,
 data=hrunbalanced)
 
-anova(fit.RandInt, fit.RandSlp)
-```
-```{r}
-summary(fit.RandSlp)
-```
-```{r}
+covar <- getVarCov(fit.RandSlp)
 varCorr <- VarCorr(fit.RandSlp)
 ```
-```{r}
-covar <- getVarCov(fit.RandSlp)
-```
-```{r}
-print(matrix(fit.RandSlp$coefficients$fixed, ncol = 1))
-```
+
 ## Task 1
 
 
 ```{r}
 coefs <- fit.RandSlp$coefficients$fixed
 coefs <- matrix(c(coefs[1], coefs[3], coefs[2], coefs[4]), ncol = 1)
-
-
 ones <- matrix(rep(1,6), nrow=6)
 zeros <- matrix(rep(0,6), nrow = 6)
 tN <- matrix(c(0,1,5,15,30,60), nrow = 6)
@@ -70,13 +65,23 @@ Z13 <- cbind(ones[1:4], t13)
 ```
 
 Means:
-```{r}
+```{r, results='asis'}
 mA <- xNA%*%coefs
 mB <- xNB%*%coefs
 m1 <- x1%*%coefs
 m2 <- x2%*%coefs
-m13 <- x13%*%coefs
+m13 <- rbind(x13%*%coefs, c(NA), c(NA))
+colnames(mA) <- c("Mean (drug A)")
+colnames(mB) <- c("Mean (drug B)")
+colnames(m1) <- c("Mean (obs. 1)")
+colnames(m2) <- c("Mean (obs. 2)")
+colnames(m13) <- c("Mean (obs. 13)")
+
+kable(cbind(mA,m1,m2,mB,m13), format = "latex", booktabs=TRUE, 
+          caption = "Means") %>% kable_styling(latex_options="HOLD_position")
 ```
+
+
 
 Covariances:
 ```{r}
@@ -87,32 +92,60 @@ covZN <- getCov(ZN)
 covZ1 <- getCov(Z1)
 covZ2 <- getCov(Z2)
 covZ13 <- getCov(Z13)
-knitr::kable(covZ13)
+colnames(ZN) <- c("Cov. (standard)","")
+colnames(Z1) <- c("Cov. (obs. 1)","")
+colnames(Z2) <- c("Cov. (obs. 2)","")
+colnames(Z13) <- c("Cov. (obs. 13)","")
+
+
+kable(covZN, format = "latex", booktabs=TRUE, 
+      caption = "Cov. (standard)") %>% kable_styling(latex_options="HOLD_position")
+kable(covZ1, format = "latex", booktabs=TRUE, 
+      caption = "Cov. (obs. 1)") %>% kable_styling(latex_options="HOLD_position")
+kable(covZ2, format = "latex", booktabs=TRUE, 
+      caption = "Cov. (obs. 2)") %>% kable_styling(latex_options="HOLD_position")
+kable(covZ13, format = "latex", booktabs=TRUE, 
+      caption = "Cov. (obs. 13)") %>% kable_styling(latex_options="HOLD_position")
 ```
 
 ## Task 2
 
 ```{r}
 ## step one
-coef.hr <- matrix(NA,ncol = 4, nrow = 0)
+coef.hr <- matrix(NA,ncol = 3, nrow = 0)
 for (i in unique(hrunbalanced$id)) {
   model <- lm(hr~time, data = hrunbalanced, subset = id == i)
   model.drug <- unique(hrunbalanced[hrunbalanced$id == i, "drug"])
-  coef.hr <- rbind(coef.hr, c(i, model.drug, coef(model)))
+  coef.hr <- rbind(coef.hr, c(model.drug, coef(model)))
 }
-colnames(coef.hr) <- c("id","drug","intercept","slope")
+colnames(coef.hr) <- c("drug","intercept","slope")
 coef.hr <- as.data.frame(coef.hr)
-coef.hr
+print(coef.hr)
 ```
 
 ```{r}
 
-### step two
+## step two
 hr.int <- lm(intercept~drug, data = coef.hr)
 hr.slp <- lm(slope~drug, data=coef.hr)
 
-summary(hr.int)
-summary(hr.slp)
+sum.int <- summary(hr.int)
+sum.slp <- summary(hr.slp)
+sum.lme <- summary(fit.RandSlp)
+print(sum.int)
+print(sum.slp)
 
+info.int <- round(sum.int$coefficients[,c(1,4)], 4)
+info.slp <- round(sum.slp$coefficients[,c(1,4)], 4)
+info.mixed <- round(summary(fit.RandSlp)$tTable[,c(1,5)], 4)
 ```
-## te 4 wartosci do tabelki dla two-staged mozna wziac jakos wpolczynniki z intercepts (pierwsze 2) i sloper (drugie 2)
+\begin{center}
+  \begin{tabular}{c c c}
+     & Two-Stage & Mixed Effects \\ \hline
+    Intercept & $`r info.int[1,1]` (`r info.int[1,2]`)$ & $`r info.mixed[1,1]` (`r info.mixed[1,2]`)$ \\
+    Time & $`r info.slp[1,1]` (`r info.slp[1,2]`)$ & $`r info.mixed[2,1]` (`r info.mixed[2,2]`)$\\
+    Drug & $`r info.int[2,1]` (`r info.int[2,2]`)$ & $`r info.mixed[3,1]` (`r info.mixed[3,2]`)$ \\
+    Time*Drug & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\
+    \hline
+  \end{tabular}
+\end{center}
