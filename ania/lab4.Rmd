@@ -5,38 +5,124 @@ date: "29 maja 2018"
 output: pdf_document
 ---
 
-```{r}
-hrunbalanced <- read.csv("../data/hrunbalanced.csv")
-hrunbalanced$drug <- as.factor(hrunbalanced$drug)
-hrunbalanced$id <- as.factor(hrunbalanced$id)
-hrunbalanced$time <- as.factor(hrunbalanced$time)
-hrunbalanced$hr <- as.numeric(hrunbalanced$hr)
-head(hrunbalanced)
-```
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
 library(ggplot2)
-p <- ggplot(hrunbalanced, aes(x=time, y=hr, color = id)) + geom_line()
+library(reshape2)
+library(nlme)
+library(lattice)
+#knitr::opts_chunk$set(results = 'asis');
+options(xtable.comment=FALSE)
+library(xtable)
+```
+
+
+
+
+###Spaghetti plot of the heart rate over time in 2 groups
+```{r}
+hrunbalanced <- read.csv(file = "../data/hrunbalanced.csv", header = TRUE)
+hrunbalanced$id <- as.factor(hrunbalanced$id)
+
+library(ggplot2)
+p <- ggplot(hrunbalanced, aes(x=time, y=hr, color = id)) + geom_line() 
 p <- p + facet_grid(.~drug, shrink = TRUE, as.table = FALSE)
-p
+p + stat_summary(aes(group=drug), fun.y=mean, geom="line", colour="black", size = 1)
+```
+
+
+```{r}
+## Random intercept
+fit.RandInt <- lme(hr ~ time*factor(drug),
+random=~1|id,
+data=hrunbalanced)
+##Random intercept and slope
+fit.RandSlp <- lme(hr ~ time*factor(drug),
+random=~1+time|id,
+data=hrunbalanced)
+
+anova(fit.RandInt, fit.RandSlp)
+```
+
+```{r}
+varCorr <- VarCorr(fit.RandSlp)
+covar <- getVarCov(fit.RandSlp)
 ```
 
 
 
+## Task 1
+
+```{r, results= "asis"}
+print(xtable(hrunbalanced[hrunbalanced$id %in% c(1,2,13),], caption = "Observations taken into account"),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
+```
+
+
 ```{r}
-p1_data <- hrunbalanced[hrunbalanced$id ]
+coefs <- fit.RandSlp$coefficients$fixed
+#intercept, drug, time, time:drug
+coefs <- matrix(c(coefs[1], coefs[3], coefs[2], coefs[4]), ncol = 1)
+
+ones <- matrix(rep(1,6), nrow=6)
+zeros <- matrix(rep(0,6), nrow = 6)
+tN <- matrix(c(0,1,5,15,30,60), nrow = 6)
+t1 <- matrix(hrunbalanced$time[1:6], nrow = 6)
+t2 <- matrix(hrunbalanced$time[7:12], nrow = 6)
+t13 <- matrix(hrunbalanced$time[73:76], nrow = 4)
+x1 <- cbind(ones,zeros,t1,zeros)
+x2 <- cbind(ones,zeros, t2,zeros)
+x13 <- cbind(ones[1:4,],ones[1:4,],t13,t13)
+xNA <- cbind(ones, zeros, tN, zeros)
+xNB <- cbind(ones, ones, tN, tN) 
+ZN <- cbind(ones,tN)
+Z1 <- cbind(ones,t1)
+Z2 <- cbind(ones, t2)
+Z13 <- cbind(ones[1:4], t13)
+```
+
+
+#### Calculated means:
+```{r, results= "asis"}
+means <- data.frame(drugA = as.numeric(xNA%*%coefs),
+                    drugB = as.numeric(xNB%*%coefs),
+                    Y1 = as.numeric(x1%*%coefs),
+                    Y2 = as.numeric(x2%*%coefs),
+                    Y13 = c(as.numeric(x13%*%coefs),NA,NA))
+print(xtable(means, caption = "Conditional means vectors for considered observations"),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
+```
+
+#### Calculated covariances:
+```{r, results= "asis"}
+getCov <- function(Z){
+  Z%*%covar%*%t(Z) + as.numeric(varCorr[3,1])*diag(1,nrow = dim(Z)[1], ncol = dim(Z)[1])
+}
+
+covZN <- as.data.frame(getCov(ZN))
+names(covZN) <- NULL
+print(xtable(covZN, caption = " $Cov(Y_i)$ "),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
+
+covZ1 <- as.data.frame(getCov(Z1))
+names(covZ1) <- NULL
+print(xtable(covZ1, caption = " $Cov(Y_1)$ "),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
+
+covZ2 <- as.data.frame(getCov(Z2))
+names(covZ2) <- NULL
+print(xtable(covZ2, caption = " $Cov(Y_2)$ "),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
+
+covZ13 <- as.data.frame(getCov(Z13))
+names(covZ13) <- NULL
+print(xtable(covZ13, caption = " $Cov(Y_13)$ "),  sanitize.text.function=function(x){x}, include.rownames=FALSE)
 
 ```
 
 
-
+## Task 2
 ```{r}
-## 2-step analysis
-
-
-### step one
-hrunbalanced <- read.csv("../data/hrunbalanced.csv")
-
+hrunbalanced <- read.csv(file = "../data/hrunbalanced.csv", header = TRUE)
+#step one
 coef.hr <- matrix(NA,ncol = 4, nrow = 0)
 for (i in unique(hrunbalanced$id)) {
   model <- lm(hr~time, data = hrunbalanced, subset = id == i)
@@ -45,16 +131,39 @@ for (i in unique(hrunbalanced$id)) {
 }
 colnames(coef.hr) <- c("id","drug","intercept","slope")
 coef.hr <- as.data.frame(coef.hr)
-coef.hr
+
 ```
 
 ```{r}
-
-### step two
+# step two
 hr.int <- lm(intercept~drug, data = coef.hr)
 hr.slp <- lm(slope~drug, data=coef.hr)
-
-summary(hr.int)
-summary(hr.slp)
+print(summary(hr.int))
+print(summary(hr.slp))
 
 ```
+We can see from models' summaries that p-values for drug effect in intercept and slope are 0.186 and 0.366 respectively. Thus we conclude that there is no signifficant difference neither in mean intercepts nor mean slopes in different drugs groups.
+
+
+
+```{r}
+info.int <- round(summary(hr.int)$coefficients[,c(1,4)], 4)
+info.slp <- round(summary(hr.slp)$coefficients[,c(1,4)], 4)
+info.mixed <- round(summary(fit.RandSlp)$tTable[,c(1,5)], 4)
+```
+
+
+\begin{table}[b]
+\centering
+\caption{ Estimates of coefficients and corresponding p-values in two-stage model and mixed-effects model}\label{tab}
+  \begin{tabular}{c c c}
+     & Two-Stage & Mixed Effects \\ \hline
+    Intercept & $`r info.int[1,1]` (`r info.int[1,2]`)$ & $`r info.mixed[1,1]` (`r info.mixed[1,2]`)$ \\
+    Time & $`r info.slp[1,1]` (`r info.slp[1,2]`)$ & $`r info.mixed[2,1]` (`r info.mixed[2,2]`)$\\
+    Drug & $`r info.int[2,1]` (`r info.int[2,2]`)$ & $`r info.mixed[3,1]` (`r info.mixed[3,2]`)$ \\
+    Time*Drug & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\
+    \hline
+  \end{tabular}
+  \end{table}
+
+Looking at Table \ref{tab} we can observe some differences in coefficients estimates between the two models. However, the differences do not change the signifficance of p-values. In both models drug and time*drug effects are not signifficant.
