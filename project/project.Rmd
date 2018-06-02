@@ -22,7 +22,7 @@ data(kidney)
 ```{r}
 
 xy_kidney <- reshape(kidney[1:15,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
-lkidney$ltime <- log(lkidney$time)
+xy_kidney$ltime <- log(xy_kidney$time)
 
 xyplot(MDRD ~ time | id, xy_kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
 xyplot(MDRD ~ ltime | id, xy_kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
@@ -233,3 +233,76 @@ ranef(final.model2)[,1]
 
 
 
+```{r}
+lkidney$ltime2 <- lkidney$ltime^2
+coef.kidney <- matrix(NA,ncol = 7, nrow = 0)
+for (i in unique(lkidney$id)) {
+  model <- lm(MDRD~ltime+ltime2, data = lkidney, subset = id == i)
+  model.age <- unique(lkidney[lkidney$id == i, "donor.age"])
+  model.drug <- unique(lkidney[lkidney$id == i, "bpl.drugs"])
+  model.ther <- unique(lkidney[lkidney$id == i, "therapy"])
+  coef.kidney <- rbind(coef.kidney, c(i, model.age, model.drug, model.ther, coef(model)))
+  #print(coef(model))
+}
+colnames(coef.kidney) <- c("id","donor.age","bpl.drugs","therapy","intercept","slope", "quadr.slope")
+coef.kidney <- as.data.frame(coef.kidney)
+coef.kidney
+```
+
+```{r}
+
+
+### step two
+kidney.int <- lm(intercept~donor.age+bpl.drugs+factor(therapy), data = coef.kidney)
+kidney.slp <- lm(slope~donor.age+bpl.drugs+factor(therapy), data = coef.kidney)
+kidney.quadr.slp <- lm(quadr.slope~donor.age+bpl.drugs+factor(therapy), data = coef.kidney)
+
+
+info.int <- round(summary(kidney.int)$coefficients[,c(1,2)], 4)
+info.int
+info.slp <- round(summary(kidney.slp)$coefficients[,c(1,2)], 4)
+info.quadr <-round(summary(kidney.quadr.slp)$coefficients[,c(1,2)], 4)
+
+summary(kidney.int)
+```
+
+```{r}
+growth.model <- lme(MDRD~(ltime + I(ltime^2))*(donor.age + therapy +  bpl.drugs)  , random =~ltime + I(ltime^2)|factor(id), data = lkidney)
+info.mixed <- round(summary(growth.model)$tTable[,c(1,2)], 4)
+#summary(growth.model)$tTable
+```
+
+
+\begin{center}
+  \begin{tabular}{c c c}
+     & Two-Stage & Mixed Effects \\ \hline
+    Intercept & $`r info.int[1,1]` (`r info.int[1,2]`)$ & $`r info.mixed[1,1]` (`r info.mixed[1,2]`)$ \\
+    logTime & $`r info.slp[1,1]` (`r info.slp[1,2]`)$ & $`r info.mixed[2,1]` (`r info.mixed[2,2]`)$\\
+    $logTime^2$ & $`r info.quadr[1,1]` (`r info.quadr[1,2]`)$ & $`r info.mixed[3,1]` (`r info.mixed[3,2]`)$ \\
+   donor.age & $`r info.int[2,1]` (`r info.int[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\
+    therapy.cm & $`r info.int[3,1]` (`r info.int[3,2]`)$ & $`r info.mixed[5,1]` (`r info.mixed[5,2]`)$ \\
+   therapy.tc & $`r info.int[4,1]` (`r info.int[4,2]`)$ & $`r info.mixed[6,1]` (`r info.mixed[6,2]`)$ \\
+      bpl.drugs & $`r info.int[5,1]` (`r info.int[5,2]`)$ & $`r info.mixed[7,1]` (`r info.mixed[7,2]`)$ \\
+
+    \hline
+  \end{tabular}
+\end{center}
+
+
+
+
+
+
+
+
+
+
+
+<!--  logTime*donor.age & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--      logTime*therapy.cm & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--     logTime*therapy.tc & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--        logTime*bpl.drugs & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\   -->
+<!--   logTime^2*donor.age & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--      logTime^2*therapy.cm & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--     logTime^2*therapy.tc & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\ -->
+<!--        logTime^2*bpl.drugs & $`r info.slp[2,1]` (`r info.slp[2,2]`)$ & $`r info.mixed[4,1]` (`r info.mixed[4,2]`)$ \\          -->
