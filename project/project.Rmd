@@ -228,18 +228,20 @@ analyse_models <- function(data.set=kidney, normalize=F, data.split = 0.8){
   vars <- sapply(all_models, explained_var, rbind(lkidney_train, lkidney_test))
   errors <- sapply(all_models, analyse_model, lkidney_train, lkidney_test)
   result <- rbind(AICs, vars, errors)
+  result <- as.data.frame(result)
   rownames(result) <- c("AIC", "VAR", "TRAIN ERR", "TEST ERR")
   if(normalize){
     f <- as.formula("MDRD~donor.age+bpl.drugs+time")
     nn <- neuralnet(f, data=lkidney_train, hidden=c(9,3),algorithm = "rprop+",
                     err.fct = "sse",threshold = 0.1, act.fct = "logistic", linear.output=T)
     pr.nn.test <- compute(nn, lkidney_test[,c(2, 8, 9)])
+    real.values.test <- lkidney_test$MDRD
     test.err <- mean((real.values.test-pr.nn.test$net.result)**2)
     pr.nn.train <- compute(nn, lkidney_train[,c(2, 8, 9)])
+    real.values.train <- lkidney_train$MDRD
     train.err <- mean((real.values.train-pr.nn.train$net.result)**2)
-    result[,(ncol(result)+1)] <- c(NA, NA, train.err, test.err)
+    result <- cbind(result, c(NA, NA, train.err, test.err))
   }
-  
   result
 }
 ```
@@ -253,6 +255,11 @@ result <- analyse_models()
 ```
 ```{r}
 resultN <- analyse_models(normalize = T)
+```
+
+```{r}
+xtable(resultN)
+xtable(result)
 ```
 
 ```{r}
