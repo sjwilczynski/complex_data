@@ -22,11 +22,11 @@ data(kidney)
 
 ```{r}
 
-xy_kidney <- reshape(kidney[1:10,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
-xy_kidney$ltime <- log(xy_kidney$time)
+xy.kidney <- reshape(kidney[1:10,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+xy.kidney$ltime <- log(xy.kidney$time)
 
-xyplot(MDRD ~ time | id, xy_kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
-xyplot(MDRD ~ ltime | id, xy_kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
+xyplot(MDRD ~ time | id, xy.kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
+xyplot(MDRD ~ ltime | id, xy.kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
 
 lkidney <- reshape(kidney, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
 lkidney$ltime <- log(lkidney$time)
@@ -165,13 +165,13 @@ var2 <- var(residuals(simplest.un.model))
 ### Prediction
 
 ```{r}
-explained_var <- function(model, data.set) {
+explained.var <- function(model, data.set) {
   var1 <- var(data.set$MDRD)
   var2 <- var(residuals(model))
   (1-var2/var1)*100
 }
 
-analyse_model <- function(model, train.data, test.data){
+analyse.model <- function(model, train.data, test.data){
   model.test.pred <- predict(model, test.data)
   model.train.pred <- predict(model, train.data)
   model.train.mse <- mean((model.train.pred-train.data$MDRD)**2) #the same as residuals
@@ -179,9 +179,9 @@ analyse_model <- function(model, train.data, test.data){
   c(model.train.mse, model.test.mse)
 }
 
-analyse_models <- function(data.set=kidney, normalize=F, data.split = 0.8){
-  smp_size <- floor(data.split * nrow(data.set))
-  train_ind <- sample(seq_len(nrow(data.set)), size = smp_size)
+analyse.models <- function(data.set=kidney, normalize=F, data.split = 0.8){
+  smp.size <- floor(data.split * nrow(data.set))
+  train.ind <- sample(seq_len(nrow(data.set)), size = smp.size)
   nkidney <- data.set
   ntime <- log(c(1/4,1,3,6,12,24,36,60))
   if(normalize) {
@@ -193,89 +193,104 @@ analyse_models <- function(data.set=kidney, normalize=F, data.split = 0.8){
     ntime <- scale(ntime)
   }
   # changing to long representation 
-  kidney_train <- nkidney[train_ind, ]
-  kidney_test <- nkidney[-train_ind, ]
+  kidney.train <- nkidney[train.ind, ]
+  kidney.test <- nkidney[-train.ind, ]
   
-  lkidney_train <- reshape(kidney_train, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
+  lkidney.train <- reshape(kidney.train, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
   
-  lkidney_test <- reshape(kidney_test, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
+  lkidney.test <- reshape(kidney.test, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
   
   # fitting models
   
-  n.growth.model <- lme(MDRD~(time + I(time^2))*therapy  + donor.age +  bpl.drugs , random =~time + I(time^2)|factor(id), data = lkidney_train)
+  n.growth.model <- lme(MDRD~(time + I(time^2))*therapy  + donor.age +  bpl.drugs , random =~time + I(time^2)|factor(id), data = lkidney.train)
   
-  n.growth.model.cube <- lme(MDRD~(time + I(time^2)+I(time^3))*therapy  + donor.age +  bpl.drugs , random =~time + I(time^2)+I(time^3)|factor(id), data = lkidney_train)
+  n.growth.model.cube <- lme(MDRD~(time + I(time^2)+I(time^3))*therapy  + donor.age +  bpl.drugs , random =~time + I(time^2)+I(time^3)|factor(id), data = lkidney.train)
   
 
   n.simplest.un.model <- gls(MDRD~factor(time)+therapy+donor.age+bpl.drugs,
   correlation=corSymm(form= ~1 | id),
   weights=varIdent(form= ~1 | time),
-  data=lkidney_train)
+  data=lkidney.train)
   
   n.un.full.model <- gls(MDRD~donor.age+bpl.drugs+recipient.age+discrepancy.AB+discrepancy.DR+CIT+factor(time)*(diabetes+therapy),
   correlation=corSymm(form= ~1 | id),
   weights=varIdent(form= ~1 | time),
-  data=lkidney_train)
+  data=lkidney.train)
   
   n.simplest.quad.model <- gls(MDRD~(time+I(time^2))+therapy+donor.age+bpl.drugs,
   correlation=corSymm(form= ~1 | id),
   weights=varIdent(form= ~1 | time),
-  data=lkidney_train)
+  data=lkidney.train)
   
-  all_models <- list(n.growth.model, n.growth.model.cube, n.simplest.un.model, n.simplest.quad.model, n.un.full.model)
+  all.models <- list(n.growth.model, n.growth.model.cube, n.simplest.un.model, n.simplest.quad.model, n.un.full.model)
   
   AICs <- anova(n.growth.model, n.growth.model.cube, n.simplest.un.model, n.simplest.quad.model, n.un.full.model)$AIC
-  vars <- sapply(all_models, explained_var, rbind(lkidney_train, lkidney_test))
-  errors <- sapply(all_models, analyse_model, lkidney_train, lkidney_test)
+  vars <- sapply(all.models, explained.var, rbind(lkidney.train, lkidney.test))
+  errors <- sapply(all.models, analyse.model, lkidney.train, lkidney.test)
   result <- rbind(AICs, vars, errors)
   result <- as.data.frame(result)
-  rownames(result) <- c("AIC", "VAR", "TRAIN ERR", "TEST ERR")
-  if(normalize){
-    f <- as.formula("MDRD~donor.age+bpl.drugs+time")
-    nn <- neuralnet(f, data=lkidney_train, hidden=c(9,3),algorithm = "rprop+",
-                    err.fct = "sse",threshold = 0.1, act.fct = "logistic", linear.output=T)
-    pr.nn.test <- compute(nn, lkidney_test[,c(2, 8, 9)])
-    real.values.test <- lkidney_test$MDRD
-    test.err <- mean((real.values.test-pr.nn.test$net.result)**2)
-    pr.nn.train <- compute(nn, lkidney_train[,c(2, 8, 9)])
-    real.values.train <- lkidney_train$MDRD
-    train.err <- mean((real.values.train-pr.nn.train$net.result)**2)
-    result <- cbind(result, c(NA, NA, train.err, test.err))
+  rownames(result) <- c("AIC", "Var", "Train err.", "Test err.")
+  if(!normalize){
+    nkidney <- data.set
+    ntime <- log(c(1/4,1,3,6,12,24,36,60))
+    for(i in (1:ncol(data.set))){
+      if(is.numeric(data.set[2,i])){
+        nkidney[,i] <- scale(data.set[,i])
+      } 
+    }
+    ntime <- scale(ntime)
+    # changing to long representation 
+    kidney.train <- nkidney[train.ind, ]
+    kidney.test <- nkidney[-train.ind, ]
+    
+    lkidney.train <- reshape(kidney.train, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
+    
+    lkidney.test <- reshape(kidney.test, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = ntime)
   }
+  f <- as.formula("MDRD~donor.age+bpl.drugs+time")
+  nn <- neuralnet(f, data=lkidney.train, hidden=c(9,3), threshold = 0.1, linear.output=T)
+  pr.nn.test <- as.vector(compute(nn, lkidney.test[,c(2, 8, 9)])$net.result)
+  real.values.test <- lkidney.test$MDRD
+  if(!normalize){
+    real.values.test <- lkidney.test$MDRD*sd(lkidney$MDRD-mean(lkidney$MDRD))+mean(lkidney$MDRD)
+    pr.nn.test <- pr.nn.test*sd(lkidney$MDRD-mean(lkidney$MDRD))+mean(lkidney$MDRD)
+  }
+  test.err <- mean((real.values.test-pr.nn.test)**2)
+  pr.nn.train <- as.vector(compute(nn, lkidney.train[,c(2, 8, 9)])$net.result)
+  real.values.train <- lkidney.train$MDRD
+  if(!normalize){
+    pr.nn.train <- pr.nn.train*sd(lkidney$MDRD-mean(lkidney$MDRD))+mean(lkidney$MDRD)
+    real.values.train <- lkidney.train$MDRD*sd(lkidney$MDRD-mean(lkidney$MDRD))+mean(lkidney$MDRD)
+  }
+  train.err <- mean((real.values.train-pr.nn.train)**2)
+  result <- cbind(result, c(NA, NA, train.err, test.err))
   result
 }
 ```
+
+
 AIC heura wiec test bardziej odpowiedni,
 nie dziwimy sie ze mixed duzy procent, relacja?
 
+```{r}
+#for debugging analyse.models
+data.split=0.8
+normalize=F
+data.set=kidney
+```
 
 
 ```{r}
-result <- analyse_models()
+result <- analyse.models()
 ```
 ```{r}
-resultN <- analyse_models(normalize = T)
+resultN <- analyse.models(normalize = T)
 ```
 
 ```{r}
 xtable(resultN)
 xtable(result)
 ```
-
-```{r}
-f <- as.formula("MDRD~donor.age+bpl.drugs+time")
-nn <- neuralnet(f, data=lkidney_train, hidden=c(9,3),algorithm = "rprop+",
-                err.fct = "sse",threshold = 0.1, act.fct = "logistic", linear.output=T)
-```
-
-```{r}
-pr.nn.test <- compute(nn, lkidney_test[,c(2, 8, 9)])
-print(paste("NN test error=",mean((real.values.test-pr.nn.test$net.result)**2)))
-pr.nn.train <- compute(nn, lkidney_train[,c(2, 8, 9)])
-print(paste("NN train error=",mean((real.values.train-pr.nn.train$net.result)**2)))
-```
-
-
 
 
 ### Ania
