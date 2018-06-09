@@ -22,15 +22,24 @@ data(kidney)
 
 ```{r}
 
-xy.kidney <- reshape(kidney[1:10,], direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
+xy.kidney <- reshape(kidney, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
 xy.kidney$ltime <- log(xy.kidney$time)
 
-xyplot(MDRD ~ time | id, xy.kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19)
-xyplot(MDRD ~ ltime | id, xy.kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19)
+square.panel <- function(...) {
+  nx = list(...)$x
+  ny = list(...)$y
+  cc = lm(ny~nx+I(nx^2))$coef
+  panel.xyplot(...)
+  panel.curve(x^2*cc[3]+x*cc[2]+cc[1], from = min(nx), to=max(nx), col = "red")
+}
+
+xyplot(MDRD ~ time | id, xy.kidney, type=c("g","p","r"), xlab = "time since transplant", ylab = "MDRD", pch=19, layout=c(3,4), panel = square.panel, subset = id>150 & id<163)
+xyplot(MDRD ~ ltime | id, xy.kidney, type=c("g","p","r"), xlab = "log(time since transplant)", ylab = "MDRD", pch=19, layout=c(3,4), panel = square.panel, subset = id>150 & id<163)
 
 lkidney <- reshape(kidney, direction = "long", varying = list(9:16), v.names = c("MDRD"), times = c(1/4,1,3,6,12,24,36,60))
 lkidney$ltime <- log(lkidney$time)
 
+colMeans(kidney[,9:16])
 ```
 
 
@@ -74,9 +83,7 @@ data=lkidney)
 
 
 ```{r}
-covar <- getVarCov(un.model)
 anova(un.model.reml,ar.model.reml, cs.model.reml, car.model.reml)
-print(covar)
 ```
 ```{r}
 un.model <- gls(MDRD~donor.age+bpl.drugs+recipient.age+discrepancy.AB+discrepancy.DR+CIT+factor(time)*(diabetes+therapy),
@@ -149,9 +156,7 @@ correlation=corSymm(form= ~1 | id),
 weights=varIdent(form= ~1 | time),
 data=lkidney, method = "ML")
 ```
-```{r}
-anova(c(simplest.un.model.lin, simplest.un.model.quad, simplest.un.model.cube))
-```
+
 
 
 
@@ -229,7 +234,7 @@ analyse.models <- function(data.set=kidney, normalize=F, data.split = 0.8){
   errors <- sapply(all.models, analyse.model, lkidney.train, lkidney.test)
   result <- rbind(AICs, vars, errors)
   result <- as.data.frame(result)
-  rownames(result) <- c("AIC", "Var", "Train err.", "Test err.")
+  rownames(result) <- c("AIC", "% var.", "Train err.", "Test err.")
   if(!normalize){
     nkidney <- data.set
     ntime <- log(c(1/4,1,3,6,12,24,36,60))
@@ -264,8 +269,16 @@ analyse.models <- function(data.set=kidney, normalize=F, data.split = 0.8){
   }
   train.err <- mean((real.values.train-pr.nn.train)**2)
   result <- cbind(result, c(NA, NA, train.err, test.err))
+  colnames(result) <- c("Mixed(q.)", "Mixed(c.)", "Fixed(s.)", "Fixed(q.)", "Fixed(f.)", "NNet")
   result
 }
+```
+```{r}
+mean((predict(n.growth.model, lkidney.test, level = 1)-lkidney.test$MDRD)**2)
+mean((predict(n.growth.model, lkidney.train, level = 1)-lkidney.train$MDRD)**2)
+mean((predict(n.un.full.model, lkidney.train)-lkidney.train$MDRD)**2)
+mean((predict(n.un.full.model, lkidney.test)-lkidney.test$MDRD)**2)
+analyse.model(n.un.full.model, lkidney.train, lkidney.test)
 ```
 
 
@@ -277,6 +290,7 @@ nie dziwimy sie ze mixed duzy procent, relacja?
 data.split=0.8
 normalize=F
 data.set=kidney
+#plot(nn, rep = "best", information = F, show.weights = F)
 ```
 
 

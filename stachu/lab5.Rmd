@@ -1,0 +1,49 @@
+---
+title: "Complex Data - lab5"
+author: "Stanisław Wilczyński"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ALA)
+library(latex2exp)
+library(ggplot2)
+library(reshape2)
+library(nlme)
+library(lattice)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(gee)
+library(lme4)
+```
+
+## Questions before exercises:
+
+* What patterns do you notice?(p.1)
+* What do we conclude about changes in the log odds of obesity over time for boys and girls?(p.5)
+
+
+```{r}
+musc.dat <- read.table("../data/muscatine.txt",na.strings=".", as.is=T)
+names(musc.dat) <- c("id", "gender", "baseage", "age", "occasion", "y")
+musc.dat$cage <- musc.dat$age - 12
+```
+
+
+```{r, include=FALSE}
+## Model fit
+musc.gee <- gee(y~gender*cage + gender*I(cage^2),
+  id=id,
+  family="binomial",
+  data=musc.dat,
+  corstr="unstructured")
+## Summary of the output
+summary(musc.gee)
+```
+
+```{r}
+
+```
+
