@@ -82,8 +82,10 @@ data=lkidney)
 ```
 
 
+
 ```{r}
 anova(un.model.reml,ar.model.reml, cs.model.reml, car.model.reml)
+anova(un.model.reml)
 ```
 ```{r}
 un.model <- gls(MDRD~donor.age+bpl.drugs+recipient.age+discrepancy.AB+discrepancy.DR+CIT+factor(time)*(diabetes+therapy),
@@ -122,12 +124,23 @@ anova(un.model)
 ```
 
 ```{r}
+
+un.model <- gls(MDRD~diabetes+donor.age+bpl.drugs+recipient.age+discrepancy.AB+discrepancy.DR+CIT+factor(time)*(therapy),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
 simpler.un.model <- gls(MDRD~factor(time)*(therapy+diabetes) + (donor.age+bpl.drugs),
 correlation=corSymm(form= ~1 | id),
 weights=varIdent(form= ~1 | time),
 data=lkidney, method = "ML")
 
-simplest.un.model <- gls(MDRD~factor(time)+(therapy) + (donor.age+bpl.drugs),
+simpler.un.model2 <- gls(MDRD~factor(time)*(therapy) + (donor.age+bpl.drugs+diabetes),
+correlation=corSymm(form= ~1 | id),
+weights=varIdent(form= ~1 | time),
+data=lkidney, method = "ML")
+
+simplest.un.model <- gls(MDRD~factor(time)*(therapy) + (donor.age+bpl.drugs),
 correlation=corSymm(form= ~1 | id),
 weights=varIdent(form= ~1 | time),
 data=lkidney, method = "ML")
@@ -138,7 +151,17 @@ data=lkidney, method = "ML")
 anova(simpler.un.model, un.model)
 anova(simpler.un.model, simplest.un.model)
 anova(simplest.un.model, un.model)
+anova(simpler.un.model2, simplest.un.model)
+anova(simpler.un.model2, un.model)
+anova(simpler.un.model2)
+anova(un.model)
+anova(simpler.un.model)
 ```
+```{r}
+xtable(matrix(c(summary(simplest.un.model)$coefficients, 1,1,1,1), nrow=5, byrow = T), digits = 2, caption = "Coefficients")
+```
+
+
 
 ```{r}
 simplest.un.model.lin <- gls(MDRD~ltime+therapy+donor.age+bpl.drugs,
@@ -155,6 +178,10 @@ simplest.un.model.cube <- gls(MDRD~(ltime+I(ltime^2)+I(ltime^3))+therapy+donor.a
 correlation=corSymm(form= ~1 | id),
 weights=varIdent(form= ~1 | time),
 data=lkidney, method = "ML")
+```
+
+```{r}
+anova(simplest.un.model, simplest.un.model.quad, simplest.un.model.cube)
 ```
 
 
@@ -212,7 +239,7 @@ analyse.models <- function(data.set=kidney, normalize=F, data.split = 0.8){
   n.growth.model.cube <- lme(MDRD~(time + I(time^2)+I(time^3))*therapy  + donor.age +  bpl.drugs , random =~time + I(time^2)+I(time^3)|factor(id), data = lkidney.train)
   
 
-  n.simplest.un.model <- gls(MDRD~factor(time)+therapy+donor.age+bpl.drugs,
+  n.simplest.un.model <- gls(MDRD~factor(time)*therapy+donor.age+bpl.drugs,
   correlation=corSymm(form= ~1 | id),
   weights=varIdent(form= ~1 | time),
   data=lkidney.train)
@@ -222,7 +249,7 @@ analyse.models <- function(data.set=kidney, normalize=F, data.split = 0.8){
   weights=varIdent(form= ~1 | time),
   data=lkidney.train)
   
-  n.simplest.quad.model <- gls(MDRD~(time+I(time^2))+therapy+donor.age+bpl.drugs,
+  n.simplest.quad.model <- gls(MDRD~(time+I(time^2))*therapy+donor.age+bpl.drugs,
   correlation=corSymm(form= ~1 | id),
   weights=varIdent(form= ~1 | time),
   data=lkidney.train)
