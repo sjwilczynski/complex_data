@@ -184,16 +184,6 @@ data=lkidney, method = "ML")
 anova(simplest.un.model, simplest.un.model.quad, simplest.un.model.cube)
 ```
 
-
-
-
-```{r}
-growth.model <- lme(MDRD~(ltime + I(ltime^2))*therapy  + donor.age +  bpl.drugs , random =~ltime + I(ltime^2)|factor(id), data = lkidney, method = "ML")
-anova(growth.model, simplest.un.model)
-var1 <- var(lkidney$MDRD)
-var2 <- var(residuals(simplest.un.model))
-(1-var2/var1)*100
-```
 ### Prediction
 
 ```{r}
@@ -322,15 +312,22 @@ data.set=kidney
 
 
 ```{r}
-result <- analyse.models()
-```
-```{r}
-resultN <- analyse.models(normalize = T)
+result.list <- list()
+for(i in 1:5){
+  print(paste(i))
+  result.list[[i]] <- analyse.models()
+}
+res <- (result.list[[1]]+result.list[[2]]+result.list[[3]]+result.list[[4]]+result.list[[5]])/5
+xtable(res)
 ```
 
+
+
 ```{r}
-xtable(resultN)
-xtable(result)
+result.list.norm <- list()
+for(i in 1:5){
+  result.list.norm[[i]] <- analyse.models(normalize = T)
+}
 ```
 
 

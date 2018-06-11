@@ -44,6 +44,47 @@ summary(musc.gee)
 ```
 
 ```{r}
+## Model fit
+musc.gee.noInt <- gee(y~gender + cage + I(cage^2),
+id=id,
+family="binomial",
+data=musc.dat,
+corstr="unstructured")
+## Summary of the output
+summary(musc.gee.noInt)
+```
 
+
+```{r}
+## predictions
+musc.sel.dat <- matrix(unlist(expand.grid(unique(musc.dat$gender),
+unique(musc.dat$cage))), ncol=2)
+musc.sel.dat <- cbind(rep(1,dim(musc.sel.dat)[1]),
+musc.sel.dat, musc.sel.dat[,2]^2)
+colnames(musc.sel.dat) <- c("Int", "gender","cage", "cage2")
+musc.lin.pred <- musc.sel.dat %*% matrix(coef(musc.gee.noInt), ncol=1)
+musc.exp.pred <- exp(musc.lin.pred)/(1+exp(musc.lin.pred))
+musc.all.pred <- cbind(musc.sel.dat, musc.lin.pred, musc.exp.pred)
+```
+
+```{r}
+depress.dat <- read.table("../data/depress.txt",na.strings=".")
+names(depress.dat) <- c("id", "y", "severe", "drug", "time")
+dim(depress.dat)
+depress.gee <- gee(y~severe + drug*time,
+  id=id,
+  family="binomial",
+  data=depress.dat,
+  corstr="unstructured")
+summary(depress.gee)
+```
+
+
+```{r}
+## GLMM
+depress.glmer <- glmer(y ~ severe + drug*time + (1|id),
+family = binomial,
+data=depress.dat)
+summary(depress.glmer)
 ```
 
