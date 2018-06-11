@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+author: "Anna Zaleska"
+date: "11 czerwca 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+
+```{r}
+musc.dat <- read.table('../data/muscatine.txt',na.strings=".", as.is=T)
+names(musc.dat) <- c("id", "gender", "baseage", "age", "occasion", "y")
+musc.dat$cage <- musc.dat$age - 12
+library(gee) # GEE library
+
+## Model fit
+musc.gee <- gee(y~gender*cage + gender*I(cage^2),
+  id=id,
+  family="binomial",
+  data=musc.dat,
+  corstr="unstructured")
+
+## Summary of the output
+summary(musc.gee)
+
+## Model fit
+musc.gee.noInt <- gee(y~gender + cage + I(cage^2),
+  id=id,
+  family="binomial",
+  data=musc.dat,
+  corstr="unstructured")
+
+## Summary of the output
+summary(musc.gee.noInt)
+
+```
+
+```{r}
+musc.sel.dat <- matrix(unlist(expand.grid(unique(musc.dat$gender),
+unique(musc.dat$cage))), ncol=2)
+musc.sel.dat <- cbind(rep(1,dim(musc.sel.dat)[1]),
+musc.sel.dat, musc.sel.dat[,2]^2)
+colnames(musc.sel.dat) <- c("Int", "gender","cage", "cage2")
+musc.lin.pred <- musc.sel.dat %*% matrix(coef(musc.gee.noInt), ncol=1)
+musc.exp.pred <- exp(musc.lin.pred)/(1+exp(musc.lin.pred))
+musc.all.pred <- cbind(musc.sel.dat, musc.lin.pred, musc.exp.pred)
+musc.all.pred
+```
+
+
+```{r}
+musc.all.pred.plot <- as.data.frame(musc.all.pred[,c(2,3,6)])
+colnames(musc.all.pred.plot) <- c("gender","age", "probability")
+musc.all.pred.plot$gender <- as.factor(musc.all.pred.plot$gender)
+p <- ggplot(musc.all.pred.plot, aes(x=age, y=probability, colour = gender)) + geom_line()
+p
+```
