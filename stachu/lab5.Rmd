@@ -46,7 +46,7 @@ musc.gee <- gee(y~gender*cage + gender*I(cage^2),
 summary(musc.gee)
 ```
 
-For this model we can see that included interactions yielded very small coefficients comapred to main effects. Therefore, it is reasonable to fit a model without interactions.
+For this model we can see that included interactions yielded very small coefficients compared to main effects. Therefore, it is reasonable to fit a model without interactions.
 
 ```{r}
 ## Model fit - no interactions
@@ -59,7 +59,7 @@ corstr="unstructured")
 summary(musc.gee.noInt)
 ```
 
-As in the task description we can conclude for our model that young females have higher probability of being obese ($1.142$ time higher odds ration) and that quadratic curve fits our data set well. The consequence of neglecting interactions is that the patterns of change in rates of obesity (profiles) do not depend on gender (check plot below).  
+As in the task description we can conclude for our model that young females have higher probability of being obese ($1.142$ time higher odds ratio) and that quadratic curve fits our data set well. The consequence of neglecting interactions is that the patterns of change in rates of obesity (profiles) do not depend on gender (check plot below).  
 
 ```{r}
 ## predictions
@@ -136,5 +136,5 @@ Effect of initial diagnosis:
 
 Random effect:
 
-* As expected by looking at Table 1., the random effect is almost neglectable: $Var(b) = 0.0032$ and this means that values of $b$ for each observation are very small comapred to other variables multiplied by proper betas
+* As expected by looking at Table 1., the random effect is almost neglectable: $Var(b) = 0.0032$ and this means that values of $b$ for each observation are very small compared to other variables multiplied by proper betas
 
