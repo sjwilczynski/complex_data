@@ -43,8 +43,7 @@ colMeans(kidney[,9:16])
 ```
 
 
-### Analiza bez efektów losowych (Stachu)
-
+### Fixed effects
 
 ```{r}
 for(i in 1:8){
@@ -299,8 +298,6 @@ analyse.model(n.un.full.model, lkidney.train, lkidney.test)
 ```
 
 
-AIC heura wiec test bardziej odpowiedni,
-nie dziwimy sie ze mixed duzy procent, relacja?
 
 ```{r}
 #for debugging analyse.models
@@ -331,7 +328,7 @@ for(i in 1:5){
 ```
 
 
-### Ania
+### Mixed effects models
 
 
 
